@@ -1,0 +1,815 @@
+//
+//  LoginVC.swift
+//  Amperfy
+//
+//  Created by Maximilian Bauer on 09.03.19.
+//  Copyright (c) 2019 Maximilian Bauer. All rights reserved.
+//
+//  This program is free software: you can redistribute it and/or modify
+//  it under the terms of the GNU General Public License as published by
+//  the Free Software Foundation, either version 3 of the License, or
+//  (at your option) any later version.
+//
+//  This program is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
+//
+//  You should have received a copy of the GNU General Public License
+//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//
+
+import AmperfyKit
+import Network
+import SwiftUI
+import UIKit
+
+extension String {
+  var isHyperTextProtocolProvided: Bool {
+    hasPrefix("https://") || hasPrefix("http://")
+  }
+}
+
+extension UITextField {
+  func configuteForLogin(image: UIImage) {
+    clipsToBounds = true
+    layer.cornerRadius = 5
+    layer.borderWidth = CGFloat(0.5)
+    layer.borderColor = UIColor.label.cgColor
+
+    borderStyle = .roundedRect
+    font = .systemFont(ofSize: LoginVC.fontSize)
+
+    let imageView = UIImageView(frame: CGRect(x: 5, y: 0, width: 25, height: 25))
+    imageView.contentMode = .scaleAspectFit
+    imageView.image = image.withRenderingMode(.alwaysTemplate)
+    imageView.tintColor = .label
+
+    let leftContainerView = UIView(frame: CGRect(x: 0, y: 0, width: 35, height: 25))
+    leftContainerView.addSubview(imageView)
+
+    leftView = leftContainerView
+    leftViewMode = .always
+
+    backgroundColor = .clear
+  }
+}
+
+// MARK: - LocalNetworkAuthorization
+
+/// Triggers the local network permission prompt by browsing for a Bonjour service.
+/// iOS only asks on the first local network access, which would otherwise be the login request itself.
+@MainActor
+final class LocalNetworkAuthorization {
+  static let shared = LocalNetworkAuthorization()
+  // Must be listed in NSBonjourServices in Info.plist
+  private static let serviceType = "_amperfy-lnp._tcp"
+
+  private(set) var isDenied = false
+  private var browser: NWBrowser?
+
+  func trigger() {
+    guard browser == nil else { return }
+    // access may have been changed in Settings since the last browse: the new state reports it
+    isDenied = false
+    let browser = NWBrowser(
+      for: .bonjour(type: Self.serviceType, domain: nil),
+      using: NWParameters()
+    )
+    browser.stateUpdateHandler = { [weak self] state in
+      MainActor.assumeIsolated {
+        guard let self else { return }
+        switch state {
+        case let .waiting(error):
+          self.isDenied = Self.isPolicyDenied(error)
+        case .ready:
+          self.isDenied = false
+        case let .failed(error):
+          self.isDenied = Self.isPolicyDenied(error)
+          self.stop()
+        default:
+          break
+        }
+      }
+    }
+    browser.start(queue: .main)
+    self.browser = browser
+  }
+
+  func stop() {
+    browser?.cancel()
+    browser = nil
+  }
+
+  private static func isPolicyDenied(_ error: NWError) -> Bool {
+    error == .dns(DNSServiceErrorType(kDNSServiceErr_PolicyDenied))
+  }
+}
+
+// MARK: - LoginVC
+
+class LoginVC: UIViewController {
+  var selectedApiType: BackenApiType = .notDetected
+  var httpHeaders: [String: String] = [:]
+
+  #if targetEnvironment(macCatalyst)
+    static let fontSize: CGFloat = 14
+  #else
+    static let fontSize: CGFloat = 16
+  #endif
+
+  fileprivate lazy var iconView: UIImageView = {
+    let imageView = UIImageView()
+    imageView.contentMode = .scaleAspectFit
+    imageView.image = .appIconTemplate
+    imageView.tintColor = appDelegate.storage.settings.accounts.getSetting(nil).read.themePreference
+      .asColor
+    return imageView
+  }()
+
+  fileprivate lazy var amperfyLabel: UILabel = {
+    let label = UILabel()
+    label.text = "Amperfy"
+    label.font = .systemFont(ofSize: 50, weight: .bold)
+    label.textColor = .tintColor
+    label.tintColor = appDelegate.storage.settings.accounts.getSetting(nil).read.themePreference
+      .asColor
+    return label
+  }()
+
+  fileprivate lazy var apiLabel: UILabel = {
+    let label = UILabel()
+    label.text = "API:"
+    label.font = .systemFont(ofSize: Self.fontSize)
+    label.textColor = .hardLabelColor
+    return label
+  }()
+
+  fileprivate lazy var serverUrlTF: UITextField = {
+    let textField = UITextField()
+    textField.configuteForLogin(image: .serverUrl)
+    textField.placeholder = "https://localhost/ampache"
+    textField.accessibilityLabel = "Server URL"
+    textField.textContentType = .URL
+    textField.keyboardType = .URL
+    textField.returnKeyType = .done
+    textField.autocorrectionType = .no
+    textField.autocapitalizationType = .none
+    textField.addTarget(
+      self,
+      action: #selector(Self.dismissKeyboard),
+      for: .primaryActionTriggered
+    )
+    return textField
+  }()
+
+  fileprivate lazy var usernameTF: UITextField = {
+    let textField = UITextField()
+    textField.configuteForLogin(image: .userPerson)
+    textField.placeholder = "Username"
+    textField.accessibilityLabel = "Username"
+    textField.textContentType = .username
+    textField.keyboardType = .default
+    textField.returnKeyType = .done
+    textField.autocorrectionType = .no
+    textField.autocapitalizationType = .none
+    textField.addTarget(
+      self,
+      action: #selector(Self.dismissKeyboard),
+      for: .primaryActionTriggered
+    )
+    return textField
+  }()
+
+  fileprivate lazy var passwordTF: UITextField = {
+    let textField = UITextField()
+    textField.configuteForLogin(image: .password)
+    textField.placeholder = "Password"
+    textField.accessibilityLabel = "Password"
+    textField.textContentType = .password
+    textField.keyboardType = .default
+    textField.returnKeyType = .done
+    textField.isSecureTextEntry = true
+    textField.autocorrectionType = .no
+    textField.autocapitalizationType = .none
+    textField.addTarget(
+      self,
+      action: #selector(Self.dismissKeyboard),
+      for: .primaryActionTriggered
+    )
+    return textField
+  }()
+
+  /// Return only dismisses the keyboard; the login is started with the Login button.
+  @objc
+  func dismissKeyboard() {
+    view.endEditing(true)
+  }
+
+  fileprivate lazy var apiSelectorButton: UIButton = {
+    var config = UIButton.Configuration.glass()
+    let button = UIButton(configuration: config)
+    button.setTitle("API", for: .normal)
+    button.preferredBehavioralStyle = .pad
+    return button
+  }()
+
+  fileprivate lazy var loginButton: UIButton = {
+    var config = UIButton.Configuration.prominentGlass()
+    config.image = .login
+    config.imagePadding = 20.0
+    let button = UIButton(configuration: config)
+    button.setTitle("Login", for: .normal)
+    button.accessibilityLabel = "Login"
+    button.addTarget(self, action: #selector(Self.loginPressed), for: .touchUpInside)
+    button.preferredBehavioralStyle = .pad
+    return button
+  }()
+
+  fileprivate lazy var advancedLabel: UILabel = {
+    let label = UILabel()
+    label.text = "Advanced:"
+    label.font = .systemFont(ofSize: Self.fontSize)
+    label.textColor = .hardLabelColor
+    return label
+  }()
+
+  fileprivate lazy var advancedButton: UIButton = {
+    var config = UIButton.Configuration.glass()
+    let button = UIButton(configuration: config)
+    button.setTitle("None", for: .normal)
+    button.accessibilityLabel = "Advanced network access options"
+    button.addTarget(self, action: #selector(Self.advancedPressed), for: .touchUpInside)
+    button.preferredBehavioralStyle = .pad
+    return button
+  }()
+
+  @IBAction
+  func advancedPressed() {
+    let hostingController = UIHostingController(rootView: AnyView(EmptyView()))
+    hostingController.rootView = AnyView(
+      AdvancedLoginOptionsView(
+        headers: httpHeaders,
+        onHeadersChange: { [weak self] updated in self?.httpHeaders = updated },
+        onDismiss: { [weak self] in self?.updateAdvancedSummary() },
+        onDone: { [weak hostingController] in hostingController?.dismiss(animated: true) }
+      )
+    )
+    hostingController.modalPresentationStyle = .formSheet
+    present(hostingController, animated: true)
+  }
+
+  static func advancedSummaryTitle(hasHeaders: Bool, hasCertificate: Bool) -> String {
+    switch (hasHeaders, hasCertificate) {
+    case (false, false): "None"
+    case (true, false): "Headers"
+    case (false, true): "Certificate"
+    case (true, true): "Headers + Certificate"
+    }
+  }
+
+  func updateAdvancedSummary() {
+    let hasCert = ClientCertificateManager.shared
+      .hasCertificate(tag: ClientCertificateManager.loginTag)
+    advancedButton.setTitle(
+      Self.advancedSummaryTitle(hasHeaders: !httpHeaders.isEmpty, hasCertificate: hasCert),
+      for: .normal
+    )
+  }
+
+  // Close button shown when presented as a sheet/modal
+  fileprivate lazy var closeButton: UIButton = {
+    var config = UIButton.Configuration.prominentGlass()
+    config.image = .xmark
+    config.imagePadding = 20.0
+    let button = UIButton(configuration: config)
+    button.accessibilityLabel = "Close"
+    button.addTarget(self, action: #selector(Self.closePressed), for: .touchUpInside)
+    button.preferredBehavioralStyle = .pad
+    button.isHidden = true
+    return button
+  }()
+
+  @IBAction
+  func closePressed() {
+    // Dismiss when presented modally (e.g., as a sheet)
+    if presentingViewController != nil || navigationController?.presentingViewController != nil {
+      dismiss(animated: true)
+    }
+  }
+
+  @IBAction
+  func loginPressed() {
+    serverUrlTF.resignFirstResponder()
+    usernameTF.resignFirstResponder()
+    passwordTF.resignFirstResponder()
+    login()
+  }
+
+  public lazy var formView: UIView = {
+    self.serverUrlTF.translatesAutoresizingMaskIntoConstraints = false
+    self.usernameTF.translatesAutoresizingMaskIntoConstraints = false
+    self.passwordTF.translatesAutoresizingMaskIntoConstraints = false
+    apiLabel.translatesAutoresizingMaskIntoConstraints = false
+    self.apiSelectorButton.translatesAutoresizingMaskIntoConstraints = false
+    self.advancedButton.translatesAutoresizingMaskIntoConstraints = false
+    advancedLabel.translatesAutoresizingMaskIntoConstraints = false
+
+    let view = UIView()
+    view.addSubview(serverUrlTF)
+    view.addSubview(usernameTF)
+    view.addSubview(passwordTF)
+    view.addSubview(apiLabel)
+    view.addSubview(apiSelectorButton)
+    view.addSubview(advancedLabel)
+    view.addSubview(advancedButton)
+
+    let padding: CGFloat = 0
+    let elementHeight: CGFloat = 40
+    let spaceInBetween: CGFloat = 15
+
+    NSLayoutConstraint.activate([
+      serverUrlTF.safeAreaLayoutGuide.topAnchor.constraint(
+        equalTo: view.safeAreaLayoutGuide.topAnchor,
+        constant: padding
+      ),
+      serverUrlTF.safeAreaLayoutGuide.leadingAnchor.constraint(
+        equalTo: view.safeAreaLayoutGuide.leadingAnchor,
+        constant: padding
+      ),
+      serverUrlTF.safeAreaLayoutGuide.trailingAnchor.constraint(
+        equalTo: view.safeAreaLayoutGuide.trailingAnchor,
+        constant: -padding
+      ),
+      serverUrlTF.heightAnchor.constraint(equalToConstant: elementHeight),
+
+      usernameTF.safeAreaLayoutGuide.topAnchor.constraint(
+        equalTo: serverUrlTF.bottomAnchor,
+        constant: spaceInBetween
+      ),
+      usernameTF.safeAreaLayoutGuide.leadingAnchor.constraint(
+        equalTo: view.safeAreaLayoutGuide.leadingAnchor,
+        constant: padding
+      ),
+      usernameTF.safeAreaLayoutGuide.trailingAnchor.constraint(
+        equalTo: view.safeAreaLayoutGuide.trailingAnchor,
+        constant: -padding
+      ),
+      usernameTF.heightAnchor.constraint(equalToConstant: elementHeight),
+
+      passwordTF.safeAreaLayoutGuide.topAnchor.constraint(
+        equalTo: usernameTF.bottomAnchor,
+        constant: spaceInBetween
+      ),
+      passwordTF.safeAreaLayoutGuide.leadingAnchor.constraint(
+        equalTo: view.safeAreaLayoutGuide.leadingAnchor,
+        constant: padding
+      ),
+      passwordTF.safeAreaLayoutGuide.trailingAnchor.constraint(
+        equalTo: view.safeAreaLayoutGuide.trailingAnchor,
+        constant: -padding
+      ),
+      passwordTF.heightAnchor.constraint(equalToConstant: elementHeight),
+
+      apiLabel.safeAreaLayoutGuide.topAnchor.constraint(
+        equalTo: passwordTF.bottomAnchor,
+        constant: spaceInBetween
+      ),
+      apiLabel.safeAreaLayoutGuide.leadingAnchor.constraint(
+        equalTo: view.safeAreaLayoutGuide.leadingAnchor,
+        constant: padding
+      ),
+      apiLabel.heightAnchor.constraint(equalToConstant: elementHeight),
+
+      apiSelectorButton.safeAreaLayoutGuide.topAnchor.constraint(
+        equalTo: passwordTF.bottomAnchor,
+        constant: spaceInBetween
+      ),
+      apiSelectorButton.safeAreaLayoutGuide.trailingAnchor.constraint(
+        equalTo: view.safeAreaLayoutGuide.trailingAnchor,
+        constant: -padding
+      ),
+      apiSelectorButton.heightAnchor.constraint(equalToConstant: elementHeight),
+
+      advancedLabel.safeAreaLayoutGuide.topAnchor.constraint(
+        equalTo: apiSelectorButton.bottomAnchor,
+        constant: spaceInBetween
+      ),
+      advancedLabel.safeAreaLayoutGuide.leadingAnchor.constraint(
+        equalTo: view.safeAreaLayoutGuide.leadingAnchor,
+        constant: padding
+      ),
+      advancedLabel.heightAnchor.constraint(equalToConstant: elementHeight),
+
+      advancedButton.safeAreaLayoutGuide.topAnchor.constraint(
+        equalTo: apiSelectorButton.bottomAnchor,
+        constant: spaceInBetween
+      ),
+      advancedButton.safeAreaLayoutGuide.trailingAnchor.constraint(
+        equalTo: view.safeAreaLayoutGuide.trailingAnchor,
+        constant: -padding
+      ),
+      advancedButton.heightAnchor.constraint(equalToConstant: elementHeight),
+
+      view.heightAnchor
+        .constraint(equalToConstant: (5 * elementHeight) + (4 * spaceInBetween) + (2 * padding)),
+    ])
+
+    return view
+  }()
+
+  var mainContainerPaddingLeadingConstraint: NSLayoutConstraint?
+  var mainContainerPaddingTrailingConstraint: NSLayoutConstraint?
+  var mainContainerPaddingTopConstraint: NSLayoutConstraint?
+  var mainContainerPaddingBottomConstraint: NSLayoutConstraint?
+  var formLeadingConstraing: NSLayoutConstraint?
+  var formTrailingConstraing: NSLayoutConstraint?
+  var formWitdhConstraing: NSLayoutConstraint?
+  var formCenterYConstraint: NSLayoutConstraint?
+  var iconCenterYConstraint: NSLayoutConstraint?
+  /// How far the form is currently lifted to stay clear of the keyboard (<= 0).
+  private var keyboardAvoidanceOffset: CGFloat = 0
+
+  public lazy var mainContainerView: UIView = {
+    self.formView.translatesAutoresizingMaskIntoConstraints = false
+
+    let view = UIView()
+    view.addSubview(formView)
+
+    let outerInset: CGFloat = 25
+
+    mainContainerPaddingLeadingConstraint = formView.safeAreaLayoutGuide.leadingAnchor.constraint(
+      equalTo: view.safeAreaLayoutGuide.leadingAnchor,
+      constant: outerInset
+    )
+    mainContainerPaddingTrailingConstraint = formView.safeAreaLayoutGuide.trailingAnchor.constraint(
+      equalTo: view.safeAreaLayoutGuide.trailingAnchor,
+      constant: -outerInset
+    )
+    mainContainerPaddingTopConstraint = formView.safeAreaLayoutGuide.topAnchor.constraint(
+      equalTo: view.safeAreaLayoutGuide.topAnchor,
+      constant: outerInset
+    )
+    mainContainerPaddingBottomConstraint = formView.safeAreaLayoutGuide.bottomAnchor.constraint(
+      equalTo: view.safeAreaLayoutGuide.bottomAnchor,
+      constant: -outerInset
+    )
+
+    NSLayoutConstraint.activate([
+      mainContainerPaddingLeadingConstraint!,
+      mainContainerPaddingTrailingConstraint!,
+      mainContainerPaddingTopConstraint!,
+      mainContainerPaddingBottomConstraint!,
+    ])
+
+    return view
+  }()
+
+  public lazy var formGlassContainer: UIVisualEffectView = {
+    let container = UIVisualEffectView()
+    let glassEffect = UIGlassEffect(style: .regular)
+    glassEffect.isInteractive = false
+    glassEffect.tintColor = appDelegate.storage.settings.accounts.getSetting(nil).read
+      .themePreference.asColor
+      .withAlphaComponent(0.1)
+    container.effect = glassEffect
+    container.cornerConfiguration = .corners(radius: 20)
+    mainContainerView.translatesAutoresizingMaskIntoConstraints = false
+    container.contentView.addSubview(mainContainerView)
+
+    NSLayoutConstraint.activate([
+      container.safeAreaLayoutGuide.topAnchor
+        .constraint(equalTo: mainContainerView.safeAreaLayoutGuide.topAnchor),
+      container.safeAreaLayoutGuide.leadingAnchor
+        .constraint(equalTo: mainContainerView.safeAreaLayoutGuide.leadingAnchor),
+      container.safeAreaLayoutGuide.trailingAnchor
+        .constraint(equalTo: mainContainerView.safeAreaLayoutGuide.trailingAnchor),
+      container.safeAreaLayoutGuide.bottomAnchor
+        .constraint(equalTo: mainContainerView.safeAreaLayoutGuide.bottomAnchor),
+    ])
+
+    return container
+  }()
+
+  public lazy var loginGlassContainer: UIView = {
+    loginButton
+  }()
+
+  func login() {
+    guard let serverUrl = serverUrlTF.text?.trimmingCharacters(in: .whitespacesAndNewlines),
+          !serverUrl.isEmpty else {
+      showErrorMsg(message: "No server URL given!")
+      return
+    }
+    guard serverUrl.isHyperTextProtocolProvided else {
+      showErrorMsg(message: "Please provide either 'https://' or 'http://' in your server URL.")
+      return
+    }
+    guard let username = usernameTF.text, !username.isEmpty else {
+      showErrorMsg(message: "No username given!")
+      return
+    }
+    guard let password = passwordTF.text, !password.isEmpty else {
+      showErrorMsg(message: "No password given!")
+      return
+    }
+
+    var credentials = LoginCredentials(serverUrl: serverUrl, username: username, password: password)
+    credentials.httpHeaders = httpHeaders
+    var accountInfo = Account.createInfo(credentials: credentials)
+
+    guard !appDelegate.storage.settings.accounts.allAccounts.contains(where: { $0 == accountInfo })
+    else {
+      showErrorMsg(message: "Account already added!")
+      return
+    }
+
+    Task { @MainActor in
+      do {
+        let meta = self.appDelegate.getMeta(accountInfo)
+        let authenticatedApiType = try await meta.backendApi.login(
+          apiType: selectedApiType,
+          credentials: credentials
+        )
+        credentials.backendApi = authenticatedApiType
+        accountInfo = Account.createInfo(credentials: credentials)
+        meta.backendApi.selectedApi = authenticatedApiType
+        meta.account.assignInfo(info: accountInfo)
+        self.appDelegate.storage.main.saveContext()
+        self.appDelegate.storage.settings.accounts.login(credentials)
+        meta.backendApi.provideCredentials(credentials: credentials)
+
+        try? ClientCertificateManager.shared.moveCertificate(
+          from: ClientCertificateManager.loginTag,
+          to: ClientCertificateManager.accountTag(for: accountInfo.ident)
+        )
+
+        self.appDelegate.notificationHandler.post(name: .accountAdded, object: nil, userInfo: nil)
+        self.appDelegate.notificationHandler.post(
+          name: .accountActiveChanged,
+          object: nil,
+          userInfo: nil
+        )
+        AmperfyAppShortcuts.updateAppShortcutParameters()
+
+        let syncVC = AppStoryboard.Main.segueToSync(account: meta.account)
+        if let rootVC = presentingViewController {
+          syncVC.modalPresentationStyle = self.modalPresentationStyle
+          rootVC.dismiss(animated: false) {
+            rootVC.present(syncVC, animated: false)
+          }
+        } else {
+          guard let mainScene = AppDelegate.mainSceneDelegate else { return }
+          mainScene
+            .replaceMainRootViewController(vc: syncVC)
+        }
+      } catch {
+        if error is AuthenticationError {
+          self.showErrorMsg(message: error.localizedDescription)
+        } else if LocalNetworkAuthorization.shared.isDenied {
+          self.showErrorMsg(
+            message: "Not able to login! Access to the local network is denied. If your server is in your local network, allow access in Settings > Privacy & Security > Local Network."
+          )
+        } else {
+          self.showErrorMsg(message: "Not able to login!")
+        }
+        self.appDelegate.resetMeta(accountInfo)
+      }
+    }
+  }
+
+  func showErrorMsg(message: String) {
+    let alert = UIAlertController(title: "Login failed", message: message, preferredStyle: .alert)
+    alert.addAction(UIAlertAction(title: "OK", style: .default))
+    present(alert, animated: true, completion: nil)
+  }
+
+  override func viewDidLoad() {
+    super.viewDidLoad()
+    updateApiSelectorText()
+
+    apiSelectorButton.showsMenuAsPrimaryAction = true
+    apiSelectorButton.menu = UIMenu(title: "Select API", children: [
+      UIAction(title: BackenApiType.notDetected.selectorDescription, handler: { _ in
+        self.selectedApiType = .notDetected
+        self.updateApiSelectorText()
+      }),
+      UIAction(title: BackenApiType.ampache.selectorDescription, handler: { _ in
+        self.selectedApiType = .ampache
+        self.updateApiSelectorText()
+      }),
+      UIAction(title: BackenApiType.subsonic.selectorDescription, handler: { _ in
+        self.selectedApiType = .subsonic
+        self.updateApiSelectorText()
+      }),
+      UIAction(title: BackenApiType.subsonic_legacy.selectorDescription, handler: { _ in
+        self.selectedApiType = .subsonic_legacy
+        self.updateApiSelectorText()
+      }),
+    ])
+
+    updateAdvancedSummary()
+
+    view.backgroundColor = .systemBackground
+
+    amperfyLabel.translatesAutoresizingMaskIntoConstraints = false
+    iconView.translatesAutoresizingMaskIntoConstraints = false
+    formGlassContainer.translatesAutoresizingMaskIntoConstraints = false
+    loginGlassContainer.translatesAutoresizingMaskIntoConstraints = false
+    closeButton.translatesAutoresizingMaskIntoConstraints = false
+    view.addSubview(amperfyLabel)
+    view.addSubview(iconView)
+    view.addSubview(formGlassContainer)
+    view.addSubview(loginGlassContainer)
+    view.addSubview(closeButton)
+
+    formLeadingConstraing = formGlassContainer.leadingAnchor.constraint(
+      equalTo: view.leadingAnchor,
+      constant: 12
+    )
+    formLeadingConstraing?.priority = .defaultHigh
+    formTrailingConstraing = formGlassContainer.trailingAnchor.constraint(
+      equalTo: view.trailingAnchor,
+      constant: -12
+    )
+    formTrailingConstraing?.priority = .defaultHigh
+    formWitdhConstraing = formGlassContainer.widthAnchor.constraint(lessThanOrEqualToConstant: 600)
+    formWitdhConstraing?.priority = .required
+    formCenterYConstraint = formGlassContainer.centerYAnchor.constraint(
+      equalTo: view.centerYAnchor,
+      constant: 0
+    )
+    iconCenterYConstraint = iconView.centerYAnchor.constraint(
+      equalTo: view.centerYAnchor,
+      constant: 0
+    )
+
+    iconView.addConstraint(NSLayoutConstraint(
+      item: iconView,
+      attribute: .height,
+      relatedBy: .equal,
+      toItem: iconView,
+      attribute: .width,
+      multiplier: 1.0,
+      constant: 0
+    ))
+    NSLayoutConstraint.activate([
+      amperfyLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor, constant: 0),
+      amperfyLabel.bottomAnchor.constraint(equalTo: formGlassContainer.topAnchor, constant: -30),
+      amperfyLabel.heightAnchor.constraint(equalToConstant: 60),
+
+      formGlassContainer.centerXAnchor.constraint(equalTo: view.centerXAnchor, constant: 0),
+      formCenterYConstraint!,
+      formWitdhConstraing!,
+      formLeadingConstraing!,
+      formTrailingConstraing!,
+
+      loginGlassContainer.centerXAnchor.constraint(equalTo: view.centerXAnchor, constant: 0),
+      loginGlassContainer.topAnchor.constraint(
+        equalTo: formGlassContainer.bottomAnchor,
+        constant: 30
+      ),
+      loginGlassContainer.widthAnchor.constraint(equalToConstant: 140),
+      loginGlassContainer.heightAnchor.constraint(equalToConstant: 40),
+
+      iconView.centerXAnchor.constraint(equalTo: view.centerXAnchor, constant: 0),
+      iconCenterYConstraint!,
+      iconView.heightAnchor.constraint(equalTo: formGlassContainer.heightAnchor, constant: 40),
+
+      // Close button top-right
+      closeButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
+      closeButton.trailingAnchor.constraint(
+        equalTo: view.safeAreaLayoutGuide.trailingAnchor,
+        constant: -16
+      ),
+    ])
+
+    // Show close button only when presented as a sheet/modal
+    let isModal = presentingViewController != nil || navigationController?
+      .presentingViewController != nil
+    closeButton.isHidden = !isModal
+
+    let tapGesture = UITapGestureRecognizer(
+      target: self,
+      action: #selector(Self.dismissKeyboard)
+    )
+    // Let taps still reach the buttons underneath
+    tapGesture.cancelsTouchesInView = false
+    view.addGestureRecognizer(tapGesture)
+
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(Self.keyboardWillChangeFrame(_:)),
+      name: UIResponder.keyboardWillChangeFrameNotification,
+      object: nil
+    )
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(Self.keyboardWillHide(_:)),
+      name: UIResponder.keyboardWillHideNotification,
+      object: nil
+    )
+  }
+
+  @objc
+  private func keyboardWillChangeFrame(_ notification: Notification) {
+    guard let userInfo = notification.userInfo,
+          let endFrame = (userInfo[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?
+          .cgRectValue
+    else { return }
+
+    let keyboardTop = view.convert(endFrame, from: nil).minY
+    // Keep the login button (lowest element) above the keyboard.
+    let overlap = loginGlassContainer.frame.maxY + 16 - keyboardTop
+    applyKeyboardAvoidance(offset: min(0, keyboardAvoidanceOffset - overlap), userInfo: userInfo)
+  }
+
+  @objc
+  private func keyboardWillHide(_ notification: Notification) {
+    applyKeyboardAvoidance(offset: 0, userInfo: notification.userInfo)
+  }
+
+  private func applyKeyboardAvoidance(offset: CGFloat, userInfo: [AnyHashable: Any]?) {
+    guard offset != keyboardAvoidanceOffset else { return }
+    keyboardAvoidanceOffset = offset
+    formCenterYConstraint?.constant = offset
+    iconCenterYConstraint?.constant = offset
+
+    let duration = userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double ?? 0.25
+    let curveRaw = userInfo?[UIResponder.keyboardAnimationCurveUserInfoKey] as? UInt
+      ?? UInt(UIView.AnimationCurve.easeInOut.rawValue)
+    UIView.animate(
+      withDuration: duration,
+      delay: 0,
+      options: UIView.AnimationOptions(rawValue: curveRaw << 16),
+      animations: { self.view.layoutIfNeeded() }
+    )
+  }
+
+  override func updateProperties() {
+    super.updateProperties()
+
+    var outerInset: CGFloat = 25
+    if traitCollection.horizontalSizeClass == .compact {
+      outerInset = 20
+    } else {
+      outerInset = 40
+    }
+
+    mainContainerPaddingLeadingConstraint?.constant = outerInset
+    mainContainerPaddingTrailingConstraint?.constant = -outerInset
+    mainContainerPaddingTopConstraint?.constant = outerInset
+    mainContainerPaddingBottomConstraint?.constant = -outerInset + 6
+  }
+
+  override func viewWillLayoutSubviews() {
+    let glassEffect = UIGlassEffect(style: .regular)
+    glassEffect.isInteractive = false
+    glassEffect.tintColor = appDelegate.storage.settings.accounts.getSetting(nil).read
+      .themePreference.asColor
+      .withAlphaComponent(0.1)
+    formGlassContainer.effect = glassEffect
+
+    if formGlassContainer.frame.width < 600 {
+      formLeadingConstraing?.priority = .required
+      formTrailingConstraing?.priority = .required
+      formWitdhConstraing?.priority = .defaultHigh
+    } else {
+      formLeadingConstraing?.priority = .defaultHigh
+      formTrailingConstraing?.priority = .defaultHigh
+      formWitdhConstraing?.priority = .required
+    }
+  }
+
+  override func viewIsAppearing(_ animated: Bool) {
+    super.viewIsAppearing(animated)
+    if let credentials = appDelegate.storage.settings.accounts.getSetting(nil).read
+      .loginCredentials {
+      serverUrlTF.text = credentials.serverUrl
+      usernameTF.text = credentials.username
+      httpHeaders = credentials.httpHeaders
+    }
+    updateAdvancedSummary()
+  }
+
+  override func viewDidAppear(_ animated: Bool) {
+    super.viewDidAppear(animated)
+    LocalNetworkAuthorization.shared.trigger()
+  }
+
+  override func viewDidDisappear(_ animated: Bool) {
+    super.viewDidDisappear(animated)
+    LocalNetworkAuthorization.shared.stop()
+  }
+
+  override func viewWillAppear(_ animated: Bool) {
+    super.viewWillAppear(animated)
+    let isModal = presentingViewController != nil || navigationController?
+      .presentingViewController != nil
+    closeButton.isHidden = !isModal
+  }
+
+  func updateApiSelectorText() {
+    apiSelectorButton.setTitle("\(selectedApiType.selectorDescription)", for: .normal)
+  }
+}

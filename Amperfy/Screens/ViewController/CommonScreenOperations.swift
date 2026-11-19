@@ -1,0 +1,266 @@
+//
+//  CommonScreenOperations.swift
+//  Amperfy
+//
+//  Created by Maximilian Bauer on 09.03.19.
+//  Copyright (c) 2019 Maximilian Bauer. All rights reserved.
+//
+//  This program is free software: you can redistribute it and/or modify
+//  it under the terms of the GNU General Public License as published by
+//  the Free Software Foundation, either version 3 of the License, or
+//  (at your option) any later version.
+//
+//  This program is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
+//
+//  You should have received a copy of the GNU General Public License
+//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//
+
+import AmperfyKit
+import Foundation
+import UIKit
+
+extension UIView {
+  static let defaultMarginX: CGFloat = 25
+  static let defaultMarginY: CGFloat = 11
+  static let defaultMarginTopElement = UIEdgeInsets(
+    top: 0.0,
+    left: UIView.defaultMarginX,
+    bottom: 0.0,
+    right: UIView.defaultMarginX
+  )
+  static let defaultMarginMiddleElement = UIEdgeInsets(
+    top: UIView.defaultMarginY,
+    left: UIView.defaultMarginX,
+    bottom: UIView.defaultMarginY,
+    right: UIView.defaultMarginX
+  )
+  static let defaultMarginCellX: CGFloat = 16
+  static let defaultMarginCellY: CGFloat = 9
+  static let defaultMarginCell = UIEdgeInsets(
+    top: UIView.defaultMarginCellY,
+    left: UIView.defaultMarginCellX,
+    bottom: UIView.defaultMarginCellY,
+    right: UIView.defaultMarginCellX
+  )
+}
+
+// MARK: - CommonScreenOperations
+
+class CommonScreenOperations {
+  /// Scales with the user's text size (40pt at the default text size)
+  @MainActor
+  static var tableSectionHeightLarge: CGFloat { TextScaling.scaledValue(40) }
+}
+
+// MARK: - Entity preview context menu
+
+extension UIViewController {
+  /// Context menu with a preview of the container.
+  /// The container gets synced with the server of the account while the preview is displayed.
+  func createEntityPreviewContextMenuConfiguration(
+    for containable: PlayableContainable,
+    at indexPath: IndexPath,
+    account: Account?,
+    playContextCb: GetPlayContextCallback?
+  )
+    -> UIContextMenuConfiguration {
+    let identifier = NSString(string: TableViewPreviewInfo(
+      playableContainerIdentifier: containable.containerIdentifier,
+      indexPath: indexPath
+    ).asJSONString())
+    return UIContextMenuConfiguration(identifier: identifier, previewProvider: {
+      let vc = EntityPreviewVC()
+      vc.display(container: containable, on: self)
+      Task { @MainActor in
+        do {
+          if let account = account {
+            try await containable.fetch(
+              storage: self.appDelegate.storage,
+              librarySyncer: self.appDelegate.getMeta(account.info).librarySyncer,
+              playableDownloadManager: self.appDelegate.getMeta(account.info)
+                .playableDownloadManager
+            )
+          }
+        } catch {
+          self.appDelegate.eventLogger.report(topic: "Preview Sync", error: error)
+        }
+        vc.refresh()
+      }
+      return vc
+    }) { suggestedActions in
+      EntityPreviewActionBuilder(
+        container: containable,
+        on: self,
+        playContextCb: playContextCb
+      ).createMenu()
+    }
+  }
+
+  /// Opens the container the context menu preview has been created for.
+  func performEntityPreviewTransition(for configuration: UIContextMenuConfiguration) {
+    guard let identifier = configuration.identifier as? String,
+          let tvPreviewInfo = TableViewPreviewInfo.create(fromIdentifier: identifier),
+          let containerIdentifier = tvPreviewInfo.playableContainerIdentifier,
+          let container = appDelegate.storage.main.library
+          .getContainer(identifier: containerIdentifier)
+    else { return }
+    EntityPreviewActionBuilder(container: container, on: self).performPreviewTransition()
+  }
+}
+
+// MARK: - UIViewController
+
+extension UIViewController {
+  private func createUserButtonMenu() -> UIMenu {
+    var accountActions = [UIMenuElement]()
+    for accountInfo in appDelegate.storage.settings.accounts.allAccounts {
+      let isActiveAccount = (accountInfo == appDelegate.storage.settings.accounts.active)
+      let action = UIAction(
+        title: appDelegate.storage.settings.accounts.getSetting(accountInfo).read
+          .loginCredentials?
+          .username ?? "Unknown",
+        subtitle: appDelegate.storage.settings.accounts.getSetting(accountInfo).read
+          .loginCredentials?
+          .displayServerUrl ?? "",
+        image: .userCircle(withConfiguration: UIImage.SymbolConfiguration(
+          pointSize: 30,
+          weight: .regular
+        )),
+        attributes: isActiveAccount ? [UIMenuElement.Attributes.disabled] : [],
+        state: isActiveAccount ? .on : .off,
+        handler: { _ in
+          self.appDelegate.switchAccount(accountInfo: accountInfo)
+        }
+      )
+      accountActions.append(action)
+    }
+
+    #if targetEnvironment(macCatalyst)
+      let addAccountImage = UIImage.plus
+    #else
+      let addAccountImage = UIImage.userCirclePlus
+    #endif
+    let openAddAccount = UIAction(
+      title: "Add Account",
+      image: addAccountImage,
+      handler: { _ in
+        let loginVC = AppStoryboard.Main.segueToLogin()
+        loginVC.modalPresentationStyle = .formSheet
+        self.present(loginVC, animated: true)
+      }
+    )
+    let openSettings = UIAction(
+      title: "Settings",
+      image: .settings,
+      handler: { _ in
+        #if targetEnvironment(macCatalyst)
+          self.appDelegate.showSettings(sender: "")
+        #else
+          let nav = AppStoryboard.Main.segueToSettings()
+          nav.modalPresentationStyle = .formSheet
+          self.present(nav, animated: true)
+        #endif
+      }
+    )
+    let settingsMenu = UIMenu(options: [.displayInline], children: [openAddAccount, openSettings])
+    accountActions.append(settingsMenu)
+
+    return UIMenu(
+      title: "",
+      image: nil,
+      options: [.displayInline],
+      children: accountActions
+    )
+  }
+
+  public func setupUserNavButton(
+    currentAccount: Account,
+    userButton: inout UIButton?,
+    userBarButtonItem: inout UIBarButtonItem?
+  ) {
+    let image = UIImage.userCircle(withConfiguration: UIImage.SymbolConfiguration(
+      pointSize: 24,
+      weight: .regular
+    )).withTintColor(
+      appDelegate.storage.settings.accounts.getSetting(currentAccount.info).read
+        .themePreference.asColor,
+      renderingMode: .alwaysTemplate
+    )
+
+    let button = UIButton(type: .system)
+    button.setImage(image, for: .normal)
+    button.accessibilityLabel = "Account"
+    button.layer.cornerRadius = 20
+    button.clipsToBounds = true
+    #if targetEnvironment(macCatalyst)
+      button.frame = CGRect(x: 0, y: 0, width: 50, height: 50)
+    #else
+      button.frame = CGRect(x: 0, y: 0, width: 40, height: 40)
+    #endif
+    button.menu = createUserButtonMenu()
+    button.showsMenuAsPrimaryAction = true
+    userButton = button
+
+    userBarButtonItem = UIBarButtonItem(customView: button)
+    navigationItem.leftBarButtonItem = userBarButtonItem!
+    refreshOfflineBarButton()
+  }
+
+  private static let offlineBarButtonTag = 0x0FF1
+
+  /// Shows the offline button next to the back or user button while offline mode is active.
+  func refreshOfflineBarButton() {
+    var items = (navigationItem.leftBarButtonItems ?? [])
+      .filter { $0.tag != UIViewController.offlineBarButtonTag }
+    if appDelegate.storage.settings.user.isOfflineMode {
+      let goOnline = UIAction(title: "Go Online", image: .onlineMode) { [weak self] _ in
+        self?.appDelegate.switchOnlineOfflineMode(isOfflineMode: false)
+      }
+      let offlineButton = UIBarButtonItem(
+        title: "Offline Mode",
+        image: .offlineMode,
+        menu: UIMenu(title: "Offline Mode is active", children: [goOnline])
+      )
+      offlineButton.tag = UIViewController.offlineBarButtonTag
+      items.append(offlineButton)
+      navigationItem.leftItemsSupplementBackButton = true
+    }
+    navigationItem.leftBarButtonItems = items
+  }
+}
+
+// MARK: - OfflineIndicatingNavigationController
+
+/// Shows the offline button in the navigation bar of every screen while offline mode is active.
+/// Used for the main navigation stacks (tabs, split view detail); sidebar and modal sheets keep a plain UINavigationController.
+class OfflineIndicatingNavigationController: UINavigationController {
+  override func viewDidLoad() {
+    super.viewDidLoad()
+    viewControllers.forEach { $0.refreshOfflineBarButton() }
+    appDelegate.notificationHandler.register(
+      self,
+      selector: #selector(offlineModeChanged),
+      name: .offlineModeChanged,
+      object: nil
+    )
+  }
+
+  override func pushViewController(_ viewController: UIViewController, animated: Bool) {
+    viewController.refreshOfflineBarButton()
+    super.pushViewController(viewController, animated: animated)
+  }
+
+  override func setViewControllers(_ viewControllers: [UIViewController], animated: Bool) {
+    viewControllers.forEach { $0.refreshOfflineBarButton() }
+    super.setViewControllers(viewControllers, animated: animated)
+  }
+
+  @objc
+  private func offlineModeChanged() {
+    viewControllers.forEach { $0.refreshOfflineBarButton() }
+  }
+}
