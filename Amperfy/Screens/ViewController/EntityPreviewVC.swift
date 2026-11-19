@@ -745,7 +745,7 @@ class EntityPreviewActionBuilder {
       if let song = playable.asSong {
         let alert = UIAlertController(
           title: "Eliminar del Servidor",
-          message: "¿Estás seguro de eliminar permanentemente "\(song.title)" de tu servidor Odiseo? Esta acción borrará el archivo físico de /srv/musica/.",
+          message: "¿Deseas eliminar definitivamente este archivo de tu servidor Odiseo?",
           preferredStyle: .alert
         )
         alert.addAction(UIAlertAction(title: "Eliminar", style: .destructive, handler: { _ in
