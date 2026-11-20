@@ -140,10 +140,13 @@ public struct PlayContext {
 
   public func getWithShuffledIndex() -> PlayContext {
     guard !isKeepIndexDuringShuffle else { return self }
+    var generator = SystemRandomNumberGenerator()
+    let shuffledPlayables = playables.shuffled(using: &generator)
     return PlayContext(
       name: name,
-      index: (playables.count < 2) ? 0 : Int.random(in: 0 ... playables.count - 1),
-      playables: playables
+      type: type,
+      index: 0,
+      playables: shuffledPlayables
     )
   }
 
@@ -249,7 +252,7 @@ public protocol PlayerFacade {
 }
 
 extension PlayerFacade {
-  public var maxSongsToAddOnce: Int { 500 }
+  public var maxSongsToAddOnce: Int { 5000 }
   public var skipForwardPodcastInterval: Double { 30.0 }
   public var skipBackwardPodcastInterval: Double { 15.0 }
   public var skipForwardMusicInterval: Double { 10.0 }

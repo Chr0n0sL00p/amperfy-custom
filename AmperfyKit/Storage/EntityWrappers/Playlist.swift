@@ -413,7 +413,7 @@ public class Playlist: Identifyable {
     library.saveContext()
   }
 
-  public func movePlaylistItem(fromIndex: Int, to: Int) {
+  public func movePlaylistItem(fromIndex: Int, to: Int, save: Bool = true) {
     guard fromIndex >= 0, fromIndex < managedObject.items.count, to >= 0,
           to < managedObject.items.count, fromIndex != to else { return }
 
@@ -437,7 +437,9 @@ public class Playlist: Identifyable {
       updateArtworkItems()
     }
     updateArtworkItems()
-    library.saveContext()
+    if save {
+      library.saveContext()
+    }
   }
 
   public func remove(at index: Int) {
@@ -481,8 +483,9 @@ public class Playlist: Identifyable {
     library.saveContext()
   }
 
-  public func shuffle() {
-    let shuffledItems = managedObject.items.shuffled()
+  public func shuffle(save: Bool = true) {
+    var generator = SystemRandomNumberGenerator()
+    let shuffledItems = managedObject.items.shuffled(using: &generator)
     guard !shuffledItems.isEmpty else { return }
 
     // Reuse entries to preserve duplicate occurrences and avoid orphaned metadata.
@@ -491,7 +494,9 @@ public class Playlist: Identifyable {
     }
     // The Core Data setter expects NSOrderedSet, despite the Swift Array getter.
     managedObject.setValue(NSOrderedSet(array: shuffledItems), forKey: #keyPath(PlaylistMO.items))
-    library.saveContext()
+    if save {
+      library.saveContext()
+    }
   }
 
   public func updateChangeDate() {

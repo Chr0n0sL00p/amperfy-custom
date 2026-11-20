@@ -51,18 +51,22 @@ class PlayerUIHandler: NSObject {
   }
 
   func playButtonPushed() {
+    Haptics.light.vibrate(isHapticsEnabled: appDelegate.storage.settings.user.isHapticsEnabled)
     player.togglePlayPause()
   }
 
   func skipBackwardButtonPushed() {
+    Haptics.light.vibrate(isHapticsEnabled: appDelegate.storage.settings.user.isHapticsEnabled)
     player.skipBackward(interval: player.skipBackwardMusicInterval)
   }
 
   func skipForwardButtonPushed() {
+    Haptics.light.vibrate(isHapticsEnabled: appDelegate.storage.settings.user.isHapticsEnabled)
     player.skipForward(interval: player.skipForwardMusicInterval)
   }
 
   func previousButtonPushed() {
+    Haptics.light.vibrate(isHapticsEnabled: appDelegate.storage.settings.user.isHapticsEnabled)
     switch player.playerMode {
     case .music:
       player.playPreviousOrReplay()
@@ -72,6 +76,7 @@ class PlayerUIHandler: NSObject {
   }
 
   func nextButtonPushed() {
+    Haptics.light.vibrate(isHapticsEnabled: appDelegate.storage.settings.user.isHapticsEnabled)
     switch player.playerMode {
     case .music:
       player.playNext()
@@ -81,10 +86,12 @@ class PlayerUIHandler: NSObject {
   }
 
   func shuffleButtonPushed() {
+    Haptics.light.vibrate(isHapticsEnabled: appDelegate.storage.settings.user.isHapticsEnabled)
     player.toggleShuffle()
   }
 
   func repeatButtonPushed() {
+    Haptics.light.vibrate(isHapticsEnabled: appDelegate.storage.settings.user.isHapticsEnabled)
     player.setRepeatMode(player.repeatMode.nextMode)
   }
 

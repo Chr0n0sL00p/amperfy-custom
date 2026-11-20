@@ -193,13 +193,14 @@ extension PlayerData: PlayerStatusPersistent {
 
   func setShuffle(_ newValue: Bool) {
     if newValue {
-      shuffledContextPlaylist.shuffle()
+      shuffledContextPlaylist.shuffle(save: false)
       if let curPlayable = currentItem,
          let indexOfCurrentItemInShuffledPlaylist = shuffledContextPlaylist
          .getFirstIndex(playable: curPlayable) {
         shuffledContextPlaylist.movePlaylistItem(
           fromIndex: indexOfCurrentItemInShuffledPlaylist,
-          to: 0
+          to: 0,
+          save: false
         )
         setCurrentIndex(0)
       }

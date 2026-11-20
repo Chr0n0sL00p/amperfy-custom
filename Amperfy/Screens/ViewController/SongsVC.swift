@@ -368,12 +368,16 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
       name: filterTitle,
       playables: []
     ) }
+    var generator = SystemRandomNumberGenerator()
     if displayedSongsMO.count > appDelegate.player.maxSongsToAddOnce {
       let songsToPlay = displayedSongsMO[randomPick: appDelegate.player.maxSongsToAddOnce]
+        .shuffled(using: &generator)
         .compactMap { Song(managedObject: $0) }
       return PlayContext(name: filterTitle, playables: songsToPlay)
     } else {
-      let songsToPlay = displayedSongsMO.compactMap { Song(managedObject: $0) }
+      let songsToPlay = displayedSongsMO
+        .shuffled(using: &generator)
+        .compactMap { Song(managedObject: $0) }
       return PlayContext(name: filterTitle, playables: songsToPlay)
     }
   }
