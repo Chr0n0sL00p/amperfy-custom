@@ -43,9 +43,6 @@ struct DisplaySettingsView: View {
                 ForEach(ThemePreference.allCases, id: \.self) { pref in
                   Button(pref.description) {
                     settings.themePreference = pref
-                    if let activeAccountInfo = settings.activeAccountInfo {
-                      appDelegate.storage.settings.accounts.getSetting(activeAccountInfo).themePreference = pref
-                    }
                     appDelegate.setAppTheme(theme: pref)
                     appDelegate.applyAppThemeToAlreadyLoadedViews()
                   }
