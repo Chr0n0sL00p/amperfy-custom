@@ -448,6 +448,10 @@ public class PlayQueueHandler {
     playerQueues.inactiveQueue.remove(firstOccurrenceOfPlayable: playableToRemove)
   }
 
+  public func shuffleActiveQueue() {
+    activeQueue.shuffle()
+  }
+
   private func moveContextItem(fromIndex: Int, to: Int) {
     guard fromIndex < activeQueue.songCount, to < activeQueue.songCount,
           fromIndex != to else { return }

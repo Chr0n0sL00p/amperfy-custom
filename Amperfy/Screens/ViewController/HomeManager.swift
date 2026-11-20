@@ -340,7 +340,7 @@ class HomeManager: NSObject {
   func updateRandomSongs(isOfflineMode: Bool) async {
     let randomSongs = storage.main.library.getRandomSongs(
       for: account,
-      count: Self.sectionMaxItemCount,
+      count: 200,
       onlyCached: isOfflineMode
     )
     data[.randomSongs] = randomSongs.compactMap {

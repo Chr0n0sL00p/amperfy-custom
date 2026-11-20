@@ -240,6 +240,9 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
     } else if queueHandler.nextQueueCount > 0 {
       return PlayerIndex(queueType: .next, index: 0)
     } else if playerStatus.repeatMode == .all, queueHandler.prevQueueCount > 0 {
+      if playerStatus.isShuffle {
+        queueHandler.shuffleActiveQueue()
+      }
       return PlayerIndex(queueType: .prev, index: 0)
     } else {
       return nil
