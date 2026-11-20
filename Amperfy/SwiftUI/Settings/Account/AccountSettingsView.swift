@@ -178,25 +178,12 @@ struct AccountSettingsView: View {
           }
 
           SettingsSection {
-            SettingsRow(title: "Theme Color") {
+            SettingsRow(title: "Theme Style") {
               Menu(settings.themePreference.description) {
-                Button(ThemePreference.blue.description) {
-                  setThemePreference(preference: .blue)
-                }
-                Button(ThemePreference.green.description) {
-                  setThemePreference(preference: .green)
-                }
-                Button(ThemePreference.red.description) {
-                  setThemePreference(preference: .red)
-                }
-                Button(ThemePreference.yellow.description) {
-                  setThemePreference(preference: .yellow)
-                }
-                Button(ThemePreference.orange.description) {
-                  setThemePreference(preference: .orange)
-                }
-                Button(ThemePreference.purple.description) {
-                  setThemePreference(preference: .purple)
+                ForEach(ThemePreference.allCases, id: \.self) { pref in
+                  Button(pref.description) {
+                    setThemePreference(preference: pref)
+                  }
                 }
               }
             }

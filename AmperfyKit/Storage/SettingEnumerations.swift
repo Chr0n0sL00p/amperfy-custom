@@ -260,8 +260,11 @@ public enum ThemePreference: Int, CaseIterable, Sendable, Codable {
   case yellow = 3
   case orange = 4
   case purple = 5
+  case frutigerAero = 6
+  case cyberpunk = 7
+  case minimalist = 8
 
-  public static let defaultValue: ThemePreference = .blue
+  public static let defaultValue: ThemePreference = .frutigerAero
 
   public var description: String {
     switch self {
@@ -277,6 +280,12 @@ public enum ThemePreference: Int, CaseIterable, Sendable, Codable {
       return "Orange"
     case .purple:
       return "Purple"
+    case .frutigerAero:
+      return "Frutiger Aero (Aqua Glass)"
+    case .cyberpunk:
+      return "Cyberpunk (Neon)"
+    case .minimalist:
+      return "Minimalist"
     }
   }
 
@@ -294,6 +303,12 @@ public enum ThemePreference: Int, CaseIterable, Sendable, Codable {
       return .orange
     case .purple:
       return .purple
+    case .frutigerAero:
+      return Color(red: 0.0/255.0, green: 200.0/255.0, blue: 235.0/255.0)
+    case .cyberpunk:
+      return Color(red: 255.0/255.0, green: 0.0/255.0, blue: 140.0/255.0)
+    case .minimalist:
+      return Color(white: 0.75)
     }
   }
 
@@ -311,6 +326,12 @@ public enum ThemePreference: Int, CaseIterable, Sendable, Codable {
       return .systemOrange
     case .purple:
       return .systemPurple
+    case .frutigerAero:
+      return UIColor(red: 0.0/255.0, green: 200.0/255.0, blue: 235.0/255.0, alpha: 1.0)
+    case .cyberpunk:
+      return UIColor(red: 255.0/255.0, green: 0.0/255.0, blue: 140.0/255.0, alpha: 1.0)
+    case .minimalist:
+      return UIColor(white: 0.75, alpha: 1.0)
     }
   }
 }

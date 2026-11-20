@@ -432,7 +432,19 @@ extension UIImage {
     artworkType: ArtworkType
   )
     -> UIImage {
-    let resourceName = "\(theme.description)\(artworkType.description)"
+    let baseThemeName: String
+    switch theme {
+    case .frutigerAero: baseThemeName = "Blue"
+    case .cyberpunk: baseThemeName = "Purple"
+    case .minimalist: baseThemeName = "Blue"
+    case .blue: baseThemeName = "Blue"
+    case .green: baseThemeName = "Green"
+    case .red: baseThemeName = "Red"
+    case .yellow: baseThemeName = "Yellow"
+    case .orange: baseThemeName = "Orange"
+    case .purple: baseThemeName = "Purple"
+    }
+    let resourceName = "\(baseThemeName)\(artworkType.description)"
     return UIImage(imageLiteralResourceName: resourceName)
   }
 

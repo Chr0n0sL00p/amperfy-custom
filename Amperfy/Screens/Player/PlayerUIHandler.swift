@@ -369,25 +369,88 @@ class PlayerUIHandler: NSObject {
   func airplayButtonPushed(rootView: UIView) {
     appDelegate.userStatistics.usedAction(.airplay)
 
-    #if targetEnvironment(macCatalyst) // ok
-      // macOS: in-app AirPlay routing only applies to AVPlayer, not to the audio unit based output
-      // of AudioStreaming. Open the system sound output settings instead.
+    #if targetEnvironment(macCatalyst)
       if let url = URL(string: "x-apple.systempreferences:com.apple.Sound-Settings.extension") {
         UIApplication.shared.open(url)
       }
     #else
-      let rect = CGRect(x: -100, y: 0, width: 0, height: 0)
-      let airplayVolume = MPVolumeView(frame: rect)
-      airplayVolume.showsVolumeSlider = false
-      rootView.addSubview(airplayVolume)
-      for view: UIView in airplayVolume.subviews {
-        if let button = view as? UIButton {
-          button.sendActions(for: .touchUpInside)
-          break
-        }
+      guard let window = rootView.window,
+            let rootVC = window.rootViewController else {
+        triggerNativeAirPlay(rootView: rootView)
+        return
       }
-      airplayVolume.removeFromSuperview()
+
+      var presenter: UIViewController = rootVC
+      while let presented = presenter.presentedViewController {
+        presenter = presented
+      }
+
+      let alert = UIAlertController(
+        title: "Dispositivo de Audio",
+        message: "Selecciona dónde reproducir la música:",
+        preferredStyle: .actionSheet
+      )
+
+      alert.addAction(UIAlertAction(title: "AirPlay / Bluetooth (iPhone, AirPods)", style: .default, handler: { [weak self] _ in
+        guard let self = self else { return }
+        self.triggerNativeAirPlay(rootView: rootView)
+      }))
+
+      alert.addAction(UIAlertAction(title: "Google Nest Mini (Comedor)", style: .default, handler: { [weak self] _ in
+        guard let self = self else { return }
+        self.castCurrentSongToNest(rootView: rootView)
+      }))
+
+      alert.addAction(UIAlertAction(title: "Cancelar", style: .cancel, handler: nil))
+
+      if let popover = alert.popoverPresentationController {
+        popover.sourceView = rootView
+        popover.sourceRect = rootView.bounds
+      }
+
+      presenter.present(alert, animated: true, completion: nil)
     #endif
+  }
+
+  private func triggerNativeAirPlay(rootView: UIView) {
+    let rect = CGRect(x: -100, y: 0, width: 0, height: 0)
+    let airplayVolume = MPVolumeView(frame: rect)
+    airplayVolume.showsVolumeSlider = false
+    rootView.addSubview(airplayVolume)
+    for view: UIView in airplayVolume.subviews {
+      if let button = view as? UIButton {
+        button.sendActions(for: .touchUpInside)
+        break
+      }
+    }
+    airplayVolume.removeFromSuperview()
+  }
+
+  private func castCurrentSongToNest(rootView: UIView) {
+    let songTitle = appDelegate.player.currentlyPlaying?.title ?? "Música"
+
+    if let url = URL(string: "http://192.168.100.90:8000/api/cast") {
+      var req = URLRequest(url: url)
+      req.httpMethod = "POST"
+      req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+      let payload = ["device": "192.168.100.13", "title": songTitle]
+      req.httpBody = try? JSONSerialization.data(withJSONObject: payload)
+      req.timeoutInterval = 3.0
+      URLSession.shared.dataTask(with: req).resume()
+    }
+
+    let alert = UIAlertController(
+      title: "Google Nest Mini",
+      message: "Transmitiendo "" + songTitle + "" hacia Google Nest Mini (Comedor @ 192.168.100.13)...",
+      preferredStyle: .alert
+    )
+    alert.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))
+
+    if let window = rootView.window, let rootVC = window.rootViewController {
+      var presenter = rootVC
+      while let p = presenter.presentedViewController { presenter = p }
+      presenter.present(alert, animated: true)
+    }
   }
 
   var isLyricsButtonAllowedToDisplay: Bool {

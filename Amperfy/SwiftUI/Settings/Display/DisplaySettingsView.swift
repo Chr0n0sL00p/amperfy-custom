@@ -36,6 +36,26 @@ struct DisplaySettingsView: View {
   var body: some View {
     ZStack {
       SettingsList {
+        SettingsSection(
+          content: {
+            SettingsRow(title: "Visual Theme") {
+              Menu(settings.themePreference.description) {
+                ForEach(ThemePreference.allCases, id: \.self) { pref in
+                  Button(pref.description) {
+                    settings.themePreference = pref
+                    if let activeAccountInfo = settings.activeAccountInfo {
+                      appDelegate.storage.settings.accounts.getSetting(activeAccountInfo).themePreference = pref
+                    }
+                    appDelegate.setAppTheme(theme: pref)
+                    appDelegate.applyAppThemeToAlreadyLoadedViews()
+                  }
+                }
+              }
+            }
+          },
+          footer: "Select between Frutiger Aero (Liquid Glass & Aqua Cyan), Cyberpunk (Neon), Minimalist, or classic colors."
+        )
+
         SettingsSection {
           SettingsRow(title: "Appearance") {
             Menu(

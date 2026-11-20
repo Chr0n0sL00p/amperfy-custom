@@ -275,8 +275,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     setAppTheme(
-      color: storage.settings.accounts.getSetting(activeAccountInfo).read.themePreference
-        .asColor
+      theme: storage.settings.accounts.getSetting(activeAccountInfo).read.themePreference
     )
 
     guard AmperKit.shared.storage.settings.app.isLibrarySynced else {
@@ -321,6 +320,49 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     player.addNotifier(notifier: self)
   }
 
+  func setAppTheme(theme: ThemePreference) {
+    let color = theme.asColor
+    UIView.appearance().tintColor = color
+
+    let navBarAppearance = UINavigationBarAppearance()
+    let tabBarAppearance = UITabBarAppearance()
+
+    switch theme {
+    case .frutigerAero:
+      navBarAppearance.configureWithDefaultBackground()
+      navBarAppearance.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterial)
+      navBarAppearance.backgroundColor = UIColor(red: 0.0, green: 0.8, blue: 0.95, alpha: 0.12)
+      navBarAppearance.titleTextAttributes = [.foregroundColor: UIColor.label]
+
+      tabBarAppearance.configureWithDefaultBackground()
+      tabBarAppearance.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterial)
+      tabBarAppearance.backgroundColor = UIColor(red: 0.0, green: 0.8, blue: 0.95, alpha: 0.12)
+
+    case .cyberpunk:
+      navBarAppearance.configureWithOpaqueBackground()
+      navBarAppearance.backgroundColor = UIColor.black
+      navBarAppearance.titleTextAttributes = [.foregroundColor: UIColor(red: 0.0, green: 1.0, blue: 0.9, alpha: 1.0)]
+
+      tabBarAppearance.configureWithOpaqueBackground()
+      tabBarAppearance.backgroundColor = UIColor.black
+
+    case .minimalist:
+      navBarAppearance.configureWithTransparentBackground()
+      tabBarAppearance.configureWithTransparentBackground()
+
+    default:
+      navBarAppearance.configureWithDefaultBackground()
+      tabBarAppearance.configureWithDefaultBackground()
+    }
+
+    UINavigationBar.appearance().standardAppearance = navBarAppearance
+    UINavigationBar.appearance().scrollEdgeAppearance = navBarAppearance
+    UINavigationBar.appearance().compactAppearance = navBarAppearance
+
+    UITabBar.appearance().standardAppearance = tabBarAppearance
+    UITabBar.appearance().scrollEdgeAppearance = tabBarAppearance
+  }
+
   func setAppTheme(color: UIColor) {
     UIView.appearance().tintColor = color
   }
@@ -349,8 +391,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     closeAllButActiveMainTabs()
     setAppTheme(
-      color: appDelegate.storage.settings.accounts.getSetting(accountInfo)
-        .read.themePreference.asColor
+      theme: appDelegate.storage.settings.accounts.getSetting(accountInfo)
+        .read.themePreference
     )
     applyAppThemeToAlreadyLoadedViews()
     AmperfyAppShortcuts.updateAppShortcutParameters()
