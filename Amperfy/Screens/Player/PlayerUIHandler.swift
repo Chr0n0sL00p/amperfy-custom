@@ -441,7 +441,7 @@ class PlayerUIHandler: NSObject {
 
     let alert = UIAlertController(
       title: "Google Nest Mini",
-      message: "Transmitiendo "" + songTitle + "" hacia Google Nest Mini (Comedor @ 192.168.100.13)...",
+      message: "Transmitiendo: \(songTitle) hacia Google Nest Mini (Comedor @ 192.168.100.13)...",
       preferredStyle: .alert
     )
     alert.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))
