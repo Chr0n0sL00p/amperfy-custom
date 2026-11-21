@@ -100,6 +100,14 @@ class DirectoryTableCell: BasicTableCell {
       iconImage.isHidden = false
     }
     accessoryType = .disclosureIndicator
-    backgroundColor = .systemBackground
+    let theme = appDelegate.storage.settings.accounts.activeSetting.read.themePreference
+    if theme.hasCustomAesthetic {
+      backgroundColor = .clear
+      contentView.backgroundColor = .clear
+      infoLabel.textColor = .white
+    } else {
+      backgroundColor = .systemBackground
+      infoLabel.textColor = .label
+    }
   }
 }

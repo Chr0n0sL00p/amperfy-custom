@@ -75,6 +75,24 @@ class GenericTableCell: BasicTableCell {
       infoLabelWidthConstraint.constant = 140
     }
     accessoryType = .disclosureIndicator
-    backgroundColor = .systemBackground
+    let theme = appDelegate.storage.settings.accounts.getSetting(container.account?.info).read.themePreference
+    if theme.hasCustomAesthetic {
+      backgroundColor = .clear
+      contentView.backgroundColor = .clear
+      if theme == .frutigerAero {
+        titleLabel.textColor = .white
+        subtitleLabel.textColor = UIColor(white: 0.95, alpha: 0.85)
+        infoLabel.textColor = UIColor(white: 0.90, alpha: 0.80)
+      } else if theme == .cyberpunk {
+        titleLabel.textColor = .white
+        subtitleLabel.textColor = UIColor(red: 0.0, green: 0.92, blue: 1.0, alpha: 0.95)
+        infoLabel.textColor = UIColor(red: 1.0, green: 0.80, blue: 0.90, alpha: 0.80)
+      }
+    } else {
+      backgroundColor = .systemBackground
+      titleLabel.textColor = .label
+      subtitleLabel.textColor = .secondaryLabel
+      infoLabel.textColor = .secondaryLabel
+    }
   }
 }

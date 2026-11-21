@@ -50,6 +50,21 @@ class PlaylistTableCell: BasicTableCell {
     )
     infoLabel.textAlignment = (traitCollection.horizontalSizeClass == .regular) ? .right : .left
     accessoryType = .disclosureIndicator
-    backgroundColor = .systemBackground
+    let theme = appDelegate.storage.settings.accounts.getSetting(playlist.account?.info).read.themePreference
+    if theme.hasCustomAesthetic {
+      backgroundColor = .clear
+      contentView.backgroundColor = .clear
+      if theme == .frutigerAero {
+        nameLabel.textColor = .white
+        infoLabel.textColor = UIColor(white: 0.95, alpha: 0.85)
+      } else if theme == .cyberpunk {
+        nameLabel.textColor = .white
+        infoLabel.textColor = UIColor(red: 0.0, green: 0.92, blue: 1.0, alpha: 0.95)
+      }
+    } else {
+      backgroundColor = .systemBackground
+      nameLabel.textColor = .label
+      infoLabel.textColor = .secondaryLabel
+    }
   }
 }

@@ -132,6 +132,17 @@ class BasicTableViewController: KeyCommandTableViewController {
     )
   }
 
+  override func viewWillAppear(_ animated: Bool) {
+    super.viewWillAppear(animated)
+    if appDelegate.storage.settings.accounts.activeSetting.read.themePreference.hasCustomAesthetic {
+      tableView.backgroundColor = .clear
+      view.backgroundColor = .clear
+    } else {
+      tableView.backgroundColor = .systemBackground
+      view.backgroundColor = .systemBackground
+    }
+  }
+
   #if targetEnvironment(macCatalyst)
     // The table view is the root view of a UITableViewController, so this is called on every
     // layout pass of the table view (scrolling, inserts, deletes, reloads).

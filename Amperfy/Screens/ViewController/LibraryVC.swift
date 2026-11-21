@@ -45,7 +45,7 @@ class LibraryVC: KeyCommandCollectionViewController {
 
   lazy var layoutConfig = {
     var config = UICollectionLayoutListConfiguration(appearance: .sidebarPlain)
-    config.backgroundColor = .systemBackground
+    config.backgroundColor = .clear
     return config
   }()
 
@@ -60,6 +60,10 @@ class LibraryVC: KeyCommandCollectionViewController {
 
   override func viewDidLoad() {
     super.viewDidLoad()
+    if appDelegate.storage.settings.accounts.activeSetting.read.themePreference.hasCustomAesthetic {
+      view.backgroundColor = .clear
+      collectionView.backgroundColor = .clear
+    }
     navigationController?.navigationBar.prefersLargeTitles = true
     libraryItemConfigurator.viewDidLoad(
       navigationItem: navigationItem,

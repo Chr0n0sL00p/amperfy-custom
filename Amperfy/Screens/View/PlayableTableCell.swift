@@ -637,17 +637,19 @@ class PlayableTableCell: BasicTableCell {
         .getSetting(playable?.account?.info).read.themePreference
       if themePreference == .frutigerAero {
         UIView.animate(withDuration: 0.08, animations: {
-          self.contentView.backgroundColor = UIColor.white.withAlphaComponent(0.2)
+          self.contentView.backgroundColor = UIColor.white.withAlphaComponent(0.28)
+          self.contentView.transform = CGAffineTransform(scaleX: 0.985, y: 0.985)
         }, completion: { _ in
-          UIView.animate(withDuration: 0.15, animations: {
+          UIView.animate(withDuration: 0.28, delay: 0, usingSpringWithDamping: 0.65, initialSpringVelocity: 0.5, animations: {
             self.contentView.backgroundColor = .clear
+            self.contentView.transform = .identity
           })
         })
       } else if themePreference == .cyberpunk {
-        UIView.animate(withDuration: 0.08, animations: {
-          self.contentView.backgroundColor = UIColor(red: 1.0, green: 0.16, blue: 0.52, alpha: 0.25)
+        UIView.animate(withDuration: 0.06, animations: {
+          self.contentView.backgroundColor = UIColor(red: 1.0, green: 0.16, blue: 0.52, alpha: 0.32)
         }, completion: { _ in
-          UIView.animate(withDuration: 0.15, animations: {
+          UIView.animate(withDuration: 0.14, animations: {
             self.contentView.backgroundColor = .clear
           })
         })

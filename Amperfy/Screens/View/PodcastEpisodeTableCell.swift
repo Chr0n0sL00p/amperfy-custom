@@ -112,7 +112,15 @@ class PodcastEpisodeTableCell: BasicTableCell {
       cacheIconImage.isHidden = true
       playProgressLabel.textColor = .secondaryLabel
     }
-    backgroundColor = .systemBackground
+    let theme = appDelegate.storage.settings.accounts.getSetting(episode.account?.info).read.themePreference
+    if theme.hasCustomAesthetic {
+      backgroundColor = .clear
+      contentView.backgroundColor = .clear
+      titleLabel.textColor = .white
+    } else {
+      backgroundColor = .systemBackground
+      titleLabel.textColor = .label
+    }
   }
 
   override func prepareForReuse() {

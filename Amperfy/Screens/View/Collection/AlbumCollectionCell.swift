@@ -115,9 +115,44 @@ class AlbumCollectionCell: BasicCollectionCell {
     self.rootView = rootView
     titleLabel.text = container.name
     subtitleLabel.text = container.subtitle
+    let theme = appDelegate.storage.settings.accounts.getSetting(container.account?.info).read.themePreference
+    if theme == .frutigerAero {
+      backgroundColor = .clear
+      contentView.backgroundColor = .clear
+      titleLabel.textColor = .white
+      subtitleLabel.textColor = UIColor(white: 0.95, alpha: 0.88)
+      entityImage.layer.cornerRadius = 14.0
+      entityImage.layer.borderWidth = 1.0
+      entityImage.layer.borderColor = UIColor.white.withAlphaComponent(0.45).cgColor
+      entityImage.clipsToBounds = true
+    } else if theme == .cyberpunk {
+      backgroundColor = .clear
+      contentView.backgroundColor = .clear
+      titleLabel.textColor = .white
+      subtitleLabel.textColor = UIColor(red: 0.0, green: 0.92, blue: 1.0, alpha: 0.95)
+      entityImage.layer.cornerRadius = 8.0
+      entityImage.layer.borderWidth = 1.0
+      entityImage.layer.borderColor = UIColor(red: 1.0, green: 0.16, blue: 0.52, alpha: 0.8).cgColor
+      entityImage.clipsToBounds = true
+    } else if theme == .minimalist {
+      backgroundColor = .clear
+      contentView.backgroundColor = .clear
+      titleLabel.textColor = .label
+      subtitleLabel.textColor = .secondaryLabel
+      entityImage.layer.cornerRadius = 8.0
+      entityImage.layer.borderWidth = 0.5
+      entityImage.layer.borderColor = UIColor.separator.cgColor
+      entityImage.clipsToBounds = true
+    } else {
+      backgroundColor = .clear
+      contentView.backgroundColor = .clear
+      titleLabel.textColor = .label
+      subtitleLabel.textColor = .secondaryLabel
+      entityImage.layer.borderWidth = 0.0
+      entityImage.clipsToBounds = true
+    }
     entityImage.display(
-      theme: appDelegate.storage.settings.accounts.getSetting(container.account?.info).read
-        .themePreference,
+      theme: theme,
       container: container,
       cornerRadius: .big
     )

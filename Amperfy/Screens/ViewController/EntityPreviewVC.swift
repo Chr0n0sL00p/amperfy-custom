@@ -757,8 +757,31 @@ class EntityPreviewActionBuilder {
             let body = ["id": song.id, "confirm": true] as [String : Any]
             req.httpBody = try? JSONSerialization.data(withJSONObject: body)
             let _ = try? await URLSession.shared.data(for: req)
-            self.appDelegate.storage.main.context.delete(song.managedObject)
+
+            // Stop playback if playing deleted song
+            if self.appDelegate.player.currentlyPlaying?.id == song.id {
+              self.appDelegate.player.stop()
+            }
+
+            // Remove from local disk cache
+            self.appDelegate.storage.main.library.deleteCache(ofPlayable: song)
+
+            // Safely delete related CoreData items and the song itself
+            let context = self.appDelegate.storage.main.context
+            if let download = song.managedObject.download {
+              context.delete(download)
+            }
+            if let artwork = song.managedObject.embeddedArtwork {
+              context.delete(artwork)
+            }
+            if let playlistItems = song.managedObject.playlistItems as? Set<PlaylistItemMO> {
+              for item in playlistItems {
+                context.delete(item)
+              }
+            }
+            context.delete(song.managedObject)
             self.appDelegate.storage.main.saveContext()
+
             self.reloadRootView()
           }
         }))
@@ -887,7 +910,15 @@ class EntityPreviewActionBuilder {
   }
 
   private func reloadRootView() {
-    if let rootTableView = rootView as? UITableViewController {
+    if let songsVC = rootView as? SongsVC {
+      songsVC.singleFetchedResultsController?.fetch()
+      songsVC.tableView.reloadData()
+    } else if let basicTableVC = rootView as? BasicTableViewController {
+      if let singleFRC = (basicTableVC as? SingleFetchedResultsTableViewController<SongMO>)?.singleFetchedResultsController {
+        singleFRC.fetch()
+      }
+      basicTableVC.tableView.reloadData()
+    } else if let rootTableView = rootView as? UITableViewController {
       rootTableView.tableView.reloadData()
     } else if let popupPlayer = rootView as? PopupPlayerVC {
       popupPlayer.tableView.reloadData()

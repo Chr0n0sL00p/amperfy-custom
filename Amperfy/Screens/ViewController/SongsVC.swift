@@ -286,18 +286,33 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
   }
 
   func convertIndexPathToPlayContext(songIndexPath: IndexPath) -> PlayContext {
-    let song = fetchedResultsController.getWrappedEntity(at: songIndexPath)
-
     guard let allFetchedObjects = fetchedResultsController.fetchedObjects,
-          let arrayIndex = allFetchedObjects.firstIndex(of: song.managedObject)
-    else { return PlayContext(containable: song) }
+          songIndexPath.row < allFetchedObjects.count
+    else {
+      let song = fetchedResultsController.getWrappedEntity(at: songIndexPath)
+      return PlayContext(containable: song)
+    }
+
+    let validObjects = allFetchedObjects.filter { !$0.isDeleted && $0.managedObjectContext != nil }
+    guard let currentMO = fetchedResultsController.getWrappedEntity(at: songIndexPath).managedObject as? SongMO,
+          !currentMO.isDeleted, currentMO.managedObjectContext != nil,
+          let arrayIndex = validObjects.firstIndex(of: currentMO)
+    else {
+      let song = fetchedResultsController.getWrappedEntity(at: songIndexPath)
+      return PlayContext(containable: song)
+    }
 
     let window = PlayContext.window(
-      count: allFetchedObjects.count,
+      count: validObjects.count,
       index: arrayIndex,
       maxCount: appDelegate.player.maxSongsToAddOnce
     )
-    let contextPlayables = window.range.map { Song(managedObject: allFetchedObjects[$0]) }
+    let contextPlayables = window.range.compactMap { index -> Song? in
+      guard index < validObjects.count else { return nil }
+      let obj = validObjects[index]
+      guard !obj.isDeleted && obj.managedObjectContext != nil else { return nil }
+      return Song(managedObject: obj)
+    }
     return PlayContext(name: filterTitle, index: window.index, playables: contextPlayables)
   }
 
@@ -356,12 +371,13 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
       name: filterTitle,
       playables: []
     ) }
-    if displayedSongsMO.count > appDelegate.player.maxSongsToAddOnce {
-      let songsToPlay = displayedSongsMO.prefix(appDelegate.player.maxSongsToAddOnce)
+    let validSongsMO = displayedSongsMO.filter { !$0.isDeleted && $0.managedObjectContext != nil }
+    if validSongsMO.count > appDelegate.player.maxSongsToAddOnce {
+      let songsToPlay = validSongsMO.prefix(appDelegate.player.maxSongsToAddOnce)
         .compactMap { Song(managedObject: $0) }
       return PlayContext(name: filterTitle, playables: songsToPlay)
     } else {
-      let songsToPlay = displayedSongsMO.compactMap { Song(managedObject: $0) }
+      let songsToPlay = validSongsMO.compactMap { Song(managedObject: $0) }
       return PlayContext(name: filterTitle, playables: songsToPlay)
     }
   }
@@ -371,14 +387,15 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
       name: filterTitle,
       playables: []
     ) }
+    let validSongsMO = displayedSongsMO.filter { !$0.isDeleted && $0.managedObjectContext != nil }
     var generator = SystemRandomNumberGenerator()
-    if displayedSongsMO.count > appDelegate.player.maxSongsToAddOnce {
-      let songsToPlay = displayedSongsMO[randomPick: appDelegate.player.maxSongsToAddOnce]
+    if validSongsMO.count > appDelegate.player.maxSongsToAddOnce {
+      let songsToPlay = validSongsMO[randomPick: appDelegate.player.maxSongsToAddOnce]
         .shuffled(using: &generator)
         .compactMap { Song(managedObject: $0) }
       return PlayContext(name: filterTitle, playables: songsToPlay)
     } else {
-      let songsToPlay = displayedSongsMO
+      let songsToPlay = validSongsMO
         .shuffled(using: &generator)
         .compactMap { Song(managedObject: $0) }
       return PlayContext(name: filterTitle, playables: songsToPlay)

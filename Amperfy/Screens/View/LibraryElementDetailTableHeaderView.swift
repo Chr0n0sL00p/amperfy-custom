@@ -77,12 +77,14 @@ class LibraryElementDetailTableHeaderView: UIView {
     configuration: PlayShuffleInfoConfiguration
   )
     -> LibraryElementDetailTableHeaderView? {
-    rootView.tableView.tableHeaderView = UIView(frame: CGRect(
+    let container = UIView(frame: CGRect(
       x: 0,
       y: 0,
       width: rootView.view.bounds.size.width,
       height: Self.frameHeight
     ))
+    container.autoresizingMask = [.flexibleWidth]
+    rootView.tableView.tableHeaderView = container
     let genericDetailTableHeaderView = ViewCreator<LibraryElementDetailTableHeaderView>
       .createFromNib(withinFixedFrame: CGRect(
         x: 0,
@@ -90,9 +92,32 @@ class LibraryElementDetailTableHeaderView: UIView {
         width: rootView.view.bounds.size.width,
         height: Self.frameHeight
       ))!
+    genericDetailTableHeaderView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
     genericDetailTableHeaderView.prepare(configuration: configuration)
-    rootView.tableView.tableHeaderView?.addSubview(genericDetailTableHeaderView)
+    container.addSubview(genericDetailTableHeaderView)
     return genericDetailTableHeaderView
+  }
+
+  override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+    if !isUserInteractionEnabled || isHidden || alpha < 0.01 { return nil }
+
+    if let playAllButton = playAllButton, !playAllButton.isHidden, playAllButton.isEnabled {
+      let buttonFrame = playAllButton.convert(playAllButton.bounds, to: self)
+      let expanded = buttonFrame.insetBy(dx: -16, dy: -12)
+      if expanded.contains(point) {
+        return playAllButton
+      }
+    }
+
+    if let playShuffledButton = playShuffledButton, !playShuffledButton.isHidden, playShuffledButton.isEnabled {
+      let buttonFrame = playShuffledButton.convert(playShuffledButton.bounds, to: self)
+      let expanded = buttonFrame.insetBy(dx: -16, dy: -12)
+      if expanded.contains(point) {
+        return playShuffledButton
+      }
+    }
+
+    return super.hitTest(point, with: event)
   }
 
   func refresh() {
@@ -137,13 +162,41 @@ class LibraryElementDetailTableHeaderView: UIView {
   }
 
   private func animateButtonPress(_ button: UIButton) {
-    UIView.animate(withDuration: 0.08, animations: {
-      button.transform = CGAffineTransform(scaleX: 0.94, y: 0.94)
-    }, completion: { _ in
-      UIView.animate(withDuration: 0.12, animations: {
-        button.transform = .identity
+    let theme = appDelegate.storage.settings.accounts.activeSetting.read.themePreference
+    switch theme {
+    case .frutigerAero:
+      UIView.animate(withDuration: 0.08, animations: {
+        button.transform = CGAffineTransform(scaleX: 0.92, y: 0.92)
+      }, completion: { _ in
+        UIView.animate(withDuration: 0.35, delay: 0, usingSpringWithDamping: 0.55, initialSpringVelocity: 0.8, animations: {
+          button.transform = .identity
+        })
       })
-    })
+    case .cyberpunk:
+      UIView.animate(withDuration: 0.06, animations: {
+        button.transform = CGAffineTransform(scaleX: 0.94, y: 0.94)
+      }, completion: { _ in
+        UIView.animate(withDuration: 0.12, animations: {
+          button.transform = .identity
+        })
+      })
+    case .minimalist:
+      UIView.animate(withDuration: 0.08, animations: {
+        button.alpha = 0.5
+      }, completion: { _ in
+        UIView.animate(withDuration: 0.12, animations: {
+          button.alpha = 1.0
+        })
+      })
+    default:
+      UIView.animate(withDuration: 0.08, animations: {
+        button.transform = CGAffineTransform(scaleX: 0.94, y: 0.94)
+      }, completion: { _ in
+        UIView.animate(withDuration: 0.12, animations: {
+          button.transform = .identity
+        })
+      })
+    }
   }
 
   func applyThemeToButtons() {

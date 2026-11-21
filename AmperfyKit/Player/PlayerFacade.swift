@@ -106,7 +106,7 @@ public struct PlayContext {
   public init(containable: PlayableContainable) {
     self.name = containable.name
     self.index = 0
-    self.playables = containable.playables
+    self.playables = containable.playables.filter { !$0.managedObject.isDeleted && $0.managedObject.managedObjectContext != nil }
     self.type = containable.playContextType
     containable.playedViaContext()
   }
@@ -114,28 +114,30 @@ public struct PlayContext {
   public init(name: String, index: Int = 0, playables: [AbstractPlayable]) {
     self.name = name
     self.index = index
-    self.playables = playables
+    self.playables = playables.filter { !$0.managedObject.isDeleted && $0.managedObject.managedObjectContext != nil }
     self.type = .music
   }
 
   public init(name: String, type: PlayerMode, index: Int = 0, playables: [AbstractPlayable]) {
     self.name = name
     self.index = index
-    self.playables = playables
+    self.playables = playables.filter { !$0.managedObject.isDeleted && $0.managedObject.managedObjectContext != nil }
     self.type = type
   }
 
   public init(containable: PlayableContainable, index: Int = 0, playables: [AbstractPlayable]) {
     self.name = containable.name
     self.index = index
-    self.playables = playables
+    self.playables = playables.filter { !$0.managedObject.isDeleted && $0.managedObject.managedObjectContext != nil }
     self.type = containable.playContextType
     containable.playedViaContext()
   }
 
   func getActivePlayable() -> AbstractPlayable? {
     guard !playables.isEmpty, index < playables.count else { return nil }
-    return playables[index]
+    let item = playables[index]
+    guard !item.managedObject.isDeleted, item.managedObject.managedObjectContext != nil else { return nil }
+    return item
   }
 
   public func getWithShuffledIndex() -> PlayContext {

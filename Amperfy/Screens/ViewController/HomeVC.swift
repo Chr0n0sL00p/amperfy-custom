@@ -116,6 +116,14 @@ final class HomeVC: UICollectionViewController {
   override func viewWillAppear(_ animated: Bool) {
     super.viewWillAppear(animated)
     navigationController?.navigationBar.prefersLargeTitles = true
+    let theme = appDelegate.storage.settings.accounts.activeSetting.read.themePreference
+    if theme.hasCustomAesthetic {
+      view.backgroundColor = .clear
+      collectionView.backgroundColor = .clear
+    } else {
+      view.backgroundColor = .systemBackground
+      collectionView.backgroundColor = .systemBackground
+    }
   }
 
   override func viewIsAppearing(_ animated: Bool) {
@@ -184,7 +192,13 @@ final class HomeVC: UICollectionViewController {
   // MARK: - CollectionView Setup
 
   private func configureCollectionView() {
-    collectionView.backgroundColor = .systemBackground
+    let theme = appDelegate.storage.settings.accounts.activeSetting.read.themePreference
+    if theme.hasCustomAesthetic {
+      collectionView.backgroundColor = .clear
+      view.backgroundColor = .clear
+    } else {
+      collectionView.backgroundColor = .systemBackground
+    }
     collectionView.register(
       UINib(nibName: AlbumCollectionCell.typeName, bundle: .main),
       forCellWithReuseIdentifier: AlbumCollectionCell.typeName
@@ -471,7 +485,20 @@ final class SectionHeaderView: UICollectionReusableView {
   }
 
   var title: String? {
-    didSet { titleLabel.text = title }
+    didSet {
+      titleLabel.text = title
+      let theme = AppDelegate.shared.storage.settings.accounts.activeSetting.read.themePreference
+      if theme == .frutigerAero {
+        titleLabel.textColor = .white
+        refreshButton.tintColor = .white
+      } else if theme == .cyberpunk {
+        titleLabel.textColor = UIColor(red: 1.0, green: 0.16, blue: 0.52, alpha: 1.0)
+        refreshButton.tintColor = UIColor(red: 0.0, green: 0.92, blue: 1.0, alpha: 1.0)
+      } else {
+        titleLabel.textColor = .label
+        refreshButton.tintColor = .label
+      }
+    }
   }
 
   override init(frame: CGRect) {
