@@ -58,6 +58,14 @@ class LibraryVC: KeyCommandCollectionViewController {
     pressedOnLibraryItemCB: self.pushedOn
   )
 
+  override func loadView() {
+    super.loadView()
+    if appDelegate.storage.settings.accounts.activeSetting.read.themePreference.hasCustomAesthetic {
+      view.backgroundColor = .clear
+      collectionView.backgroundColor = .clear
+    }
+  }
+
   override func viewDidLoad() {
     super.viewDidLoad()
     if appDelegate.storage.settings.accounts.activeSetting.read.themePreference.hasCustomAesthetic {

@@ -67,8 +67,22 @@ final class HomeVC: UICollectionViewController {
 
   // MARK: - Lifecycle
 
+  override func loadView() {
+    super.loadView()
+    let theme = appDelegate.storage.settings.accounts.activeSetting.read.themePreference
+    if theme.hasCustomAesthetic {
+      view.backgroundColor = .clear
+      collectionView.backgroundColor = .clear
+    }
+  }
+
   override func viewDidLoad() {
     super.viewDidLoad()
+    let theme = appDelegate.storage.settings.accounts.activeSetting.read.themePreference
+    if theme.hasCustomAesthetic {
+      view.backgroundColor = .clear
+      collectionView.backgroundColor = .clear
+    }
     // ensures that the collection view stops placing items under the sidebar
     collectionView.contentInsetAdjustmentBehavior = .scrollableAxes
     title = "Home"

@@ -42,8 +42,14 @@ class TabBarVC: UITabBarController {
   private var welcomePopupPresenter = WelcomePopupPresenter()
   var miniPlayer: MiniPlayerView?
 
+  override func loadView() {
+    super.loadView()
+    view.backgroundColor = .clear
+  }
+
   override func viewDidLoad() {
     super.viewDidLoad()
+    view.backgroundColor = .clear
     ThemeBackgroundView.shared.translatesAutoresizingMaskIntoConstraints = false
     view.insertSubview(ThemeBackgroundView.shared, at: 0)
     NSLayoutConstraint.activate([

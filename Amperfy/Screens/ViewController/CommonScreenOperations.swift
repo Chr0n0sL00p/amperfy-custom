@@ -238,8 +238,14 @@ extension UIViewController {
 /// Shows the offline button in the navigation bar of every screen while offline mode is active.
 /// Used for the main navigation stacks (tabs, split view detail); sidebar and modal sheets keep a plain UINavigationController.
 class OfflineIndicatingNavigationController: UINavigationController {
+  override func loadView() {
+    super.loadView()
+    view.backgroundColor = .clear
+  }
+
   override func viewDidLoad() {
     super.viewDidLoad()
+    view.backgroundColor = .clear
     viewControllers.forEach { $0.refreshOfflineBarButton() }
     appDelegate.notificationHandler.register(
       self,

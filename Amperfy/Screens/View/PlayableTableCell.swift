@@ -577,9 +577,17 @@ class PlayableTableCell: BasicTableCell {
         .getSetting(playable?.account?.info).read.themePreference.asColor
       optionsButton.imageView?.tintColor = appDelegate.storage.settings.accounts
         .getSetting(playable?.account?.info).read.themePreference.asColor
-      backgroundColor = (rootView is PopupPlayerVC) ?
-        .secondarySystemGroupedBackground.withAlphaComponent(0.2) :
-        .secondarySystemGroupedBackground
+      let theme = appDelegate.storage.settings.accounts
+        .getSetting(playable?.account?.info).read.themePreference
+      if theme.hasCustomAesthetic {
+        backgroundColor = theme == .frutigerAero ?
+          UIColor.white.withAlphaComponent(0.20) :
+          UIColor(red: 1.0, green: 0.16, blue: 0.52, alpha: 0.20)
+      } else {
+        backgroundColor = (rootView is PopupPlayerVC) ?
+          .secondarySystemGroupedBackground.withAlphaComponent(0.2) :
+          .secondarySystemGroupedBackground
+      }
     } else {
       playOverArtworkButton.isHidden = true
       playOverNumberButton.isHidden = true

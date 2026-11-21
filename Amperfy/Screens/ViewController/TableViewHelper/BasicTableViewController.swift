@@ -117,6 +117,14 @@ class BasicTableViewController: KeyCommandTableViewController {
   var swipeCallback: SwipeActionCallback?
   var isSingleCellEditingModeActive = false
 
+  override func loadView() {
+    super.loadView()
+    if appDelegate.storage.settings.accounts.activeSetting.read.themePreference.hasCustomAesthetic {
+      tableView.backgroundColor = .clear
+      view.backgroundColor = .clear
+    }
+  }
+
   override func viewDidLoad() {
     super.viewDidLoad()
     if appDelegate.storage.settings.accounts.activeSetting.read.themePreference.hasCustomAesthetic {

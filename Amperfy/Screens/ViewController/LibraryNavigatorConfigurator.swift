@@ -302,15 +302,15 @@ class LibraryNavigatorConfigurator: NSObject {
         let appDelegate = UIApplication.shared.delegate as? AppDelegate
         let theme = appDelegate?.storage.settings.accounts.activeSetting.read.themePreference ?? .blue
         if theme == .frutigerAero {
-          background.backgroundColor = UIColor(white: 1.0, alpha: 0.16)
-          background.strokeColor = UIColor(white: 1.0, alpha: 0.35)
+          background.backgroundColor = UIColor(white: 1.0, alpha: 0.20)
+          background.strokeColor = UIColor(white: 1.0, alpha: 0.45)
           background.strokeWidth = 1.0
           content.textProperties.color = .white
           content.secondaryTextProperties.color = UIColor(white: 0.9, alpha: 0.8)
           content.imageProperties.tintColor = UIColor(red: 0.25, green: 0.85, blue: 1.0, alpha: 1.0)
         } else if theme == .cyberpunk {
-          background.backgroundColor = UIColor(red: 0.08, green: 0.03, blue: 0.16, alpha: 0.70)
-          background.strokeColor = UIColor(red: 0.0, green: 1.0, blue: 0.98, alpha: 0.40)
+          background.backgroundColor = UIColor(red: 0.08, green: 0.03, blue: 0.16, alpha: 0.42)
+          background.strokeColor = UIColor(red: 0.0, green: 1.0, blue: 0.98, alpha: 0.50)
           background.strokeWidth = 1.0
           content.textProperties.color = .white
           content.secondaryTextProperties.color = UIColor(red: 0.0, green: 1.0, blue: 0.98, alpha: 0.75)

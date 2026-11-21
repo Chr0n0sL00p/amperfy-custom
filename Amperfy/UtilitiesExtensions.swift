@@ -660,9 +660,9 @@ public class ThemeBackgroundView: UIView {
       wallpaperImageView.image = getWallpaper(named: "ThemeFrutigerAeroBg")
 
       gradientLayer.colors = [
-        UIColor(red: 0.0, green: 0.70, blue: 0.88, alpha: 0.38).cgColor,
-        UIColor(red: 0.0, green: 0.78, blue: 0.92, alpha: 0.28).cgColor,
-        UIColor(red: 0.0, green: 0.55, blue: 0.75, alpha: 0.48).cgColor
+        UIColor(red: 0.0, green: 0.70, blue: 0.88, alpha: 0.22).cgColor,
+        UIColor(red: 0.0, green: 0.78, blue: 0.92, alpha: 0.14).cgColor,
+        UIColor(red: 0.0, green: 0.55, blue: 0.75, alpha: 0.28).cgColor
       ]
       gradientLayer.locations = [0.0, 0.45, 1.0]
       gradientLayer.startPoint = CGPoint(x: 0.0, y: 0.0)
@@ -676,9 +676,9 @@ public class ThemeBackgroundView: UIView {
       wallpaperImageView.image = getWallpaper(named: "ThemeCyberpunkBg")
 
       gradientLayer.colors = [
-        UIColor(red: 0.10, green: 0.04, blue: 0.18, alpha: 0.72).cgColor,
-        UIColor(red: 0.06, green: 0.02, blue: 0.12, alpha: 0.82).cgColor,
-        UIColor(red: 0.03, green: 0.01, blue: 0.07, alpha: 0.90).cgColor
+        UIColor(red: 0.10, green: 0.04, blue: 0.18, alpha: 0.38).cgColor,
+        UIColor(red: 0.06, green: 0.02, blue: 0.12, alpha: 0.48).cgColor,
+        UIColor(red: 0.03, green: 0.01, blue: 0.07, alpha: 0.62).cgColor
       ]
       gradientLayer.locations = [0.0, 0.5, 1.0]
       gradientLayer.startPoint = CGPoint(x: 0.1, y: 0.0)
@@ -810,8 +810,8 @@ public struct AppReleaseInfo: Sendable {
 public class UpdateManager: NSObject {
   public static let shared = UpdateManager()
 
-  public static let currentAppVersion = "1.4"
-  public static let currentBuildTag = "v1.4"
+  public static let currentAppVersion = "1.5"
+  public static let currentBuildTag = "v1.5"
 
   private var isChecking = false
   private var lastCheckDate: Date?
