@@ -488,7 +488,7 @@ final class SectionHeaderView: UICollectionReusableView {
     didSet {
       titleLabel.text = title
       let appDelegate = UIApplication.shared.delegate as? AppDelegate
-      let theme = appDelegate?.storage.settings.accounts.activeSetting.read.themePreference ?? .default
+      let theme = appDelegate?.storage.settings.accounts.activeSetting.read.themePreference ?? .blue
       if theme == .frutigerAero {
         titleLabel.textColor = .white
         refreshButton.tintColor = .white

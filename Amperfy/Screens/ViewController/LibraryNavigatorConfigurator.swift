@@ -300,7 +300,7 @@ class LibraryNavigatorConfigurator: NSObject {
         background.cornerRadius = 16
 
         let appDelegate = UIApplication.shared.delegate as? AppDelegate
-        let theme = appDelegate?.storage.settings.accounts.activeSetting.read.themePreference ?? .default
+        let theme = appDelegate?.storage.settings.accounts.activeSetting.read.themePreference ?? .blue
         if theme == .frutigerAero {
           background.backgroundColor = UIColor(white: 1.0, alpha: 0.16)
           background.strokeColor = UIColor(white: 1.0, alpha: 0.35)
