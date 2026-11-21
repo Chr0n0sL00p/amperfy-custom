@@ -294,8 +294,8 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
     }
 
     let validObjects = allFetchedObjects.filter { !$0.isDeleted && $0.managedObjectContext != nil }
-    guard let currentMO = fetchedResultsController.getWrappedEntity(at: songIndexPath).managedObject as? SongMO,
-          !currentMO.isDeleted, currentMO.managedObjectContext != nil,
+    let currentMO = fetchedResultsController.getWrappedEntity(at: songIndexPath).managedObject
+    guard !currentMO.isDeleted, currentMO.managedObjectContext != nil,
           let arrayIndex = validObjects.firstIndex(of: currentMO)
     else {
       let song = fetchedResultsController.getWrappedEntity(at: songIndexPath)

@@ -774,10 +774,8 @@ class EntityPreviewActionBuilder {
             if let artwork = song.managedObject.embeddedArtwork {
               context.delete(artwork)
             }
-            if let playlistItems = song.managedObject.playlistItems as? Set<PlaylistItemMO> {
-              for item in playlistItems {
-                context.delete(item)
-              }
+            for item in song.managedObject.playlistItems {
+              context.delete(item)
             }
             context.delete(song.managedObject)
             self.appDelegate.storage.main.saveContext()

@@ -116,10 +116,10 @@ class PodcastEpisodeTableCell: BasicTableCell {
     if theme.hasCustomAesthetic {
       backgroundColor = .clear
       contentView.backgroundColor = .clear
-      titleLabel.textColor = .white
+      podcastEpisodeLabel.textColor = .white
     } else {
       backgroundColor = .systemBackground
-      titleLabel.textColor = .label
+      podcastEpisodeLabel.textColor = .label
     }
   }
 
