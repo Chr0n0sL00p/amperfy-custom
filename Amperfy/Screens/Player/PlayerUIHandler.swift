@@ -58,17 +58,19 @@ class PlayerUIHandler: NSObject {
 
   func skipBackwardButtonPushed() {
     Haptics.light.vibrate(isHapticsEnabled: appDelegate.storage.settings.user.isHapticsEnabled)
+    let newTime = max(0.0, player.elapsedTime - player.skipBackwardMusicInterval)
     player.skipBackward(interval: player.skipBackwardMusicInterval)
     if NestCastManager.shared.isCasting {
-      NestCastManager.shared.seek(to: player.elapsedTime)
+      NestCastManager.shared.seek(to: newTime)
     }
   }
 
   func skipForwardButtonPushed() {
     Haptics.light.vibrate(isHapticsEnabled: appDelegate.storage.settings.user.isHapticsEnabled)
+    let newTime = player.elapsedTime + player.skipForwardMusicInterval
     player.skipForward(interval: player.skipForwardMusicInterval)
     if NestCastManager.shared.isCasting {
-      NestCastManager.shared.seek(to: player.elapsedTime)
+      NestCastManager.shared.seek(to: newTime)
     }
   }
 
@@ -650,11 +652,18 @@ public class NestCastManager: NSObject, MusicPlayable {
   public private(set) var remoteVolume: Float = 0.5
   private var savedLocalVolume: Float = 1.0
   private var lastCastingSongId: String? = nil
+  private var lastCastPlayTimestamp: TimeInterval = 0
 
-  private let endpoints = [
-    "http://100.117.169.38:4550",
-    "http://192.168.100.90:4550"
-  ]
+  private var activeBaseUrl: String = "http://192.168.100.90:4550"
+  private let fallbackBaseUrl: String = "http://100.117.169.38:4550"
+
+  private lazy var castSession: URLSession = {
+    let cfg = URLSessionConfiguration.ephemeral
+    cfg.timeoutIntervalForRequest = 2.5
+    cfg.timeoutIntervalForResource = 3.5
+    cfg.waitsForConnectivity = false
+    return URLSession(configuration: cfg)
+  }()
 
   private var player: PlayerFacade?
 
@@ -693,6 +702,7 @@ public class NestCastManager: NSObject, MusicPlayable {
 
     isCasting = true
     lastCastingSongId = songId
+    lastCastPlayTimestamp = Date().timeIntervalSince1970
 
     // Mute local iPhone audio so only the Nest Mini sounds, but timeline keeps running
     player.volume = 0.0
@@ -780,7 +790,10 @@ public class NestCastManager: NSObject, MusicPlayable {
     player.volume = 0.0
 
     guard let song = player.currentlyPlaying else { return }
+    let now = Date().timeIntervalSince1970
     lastCastingSongId = song.id
+    lastCastPlayTimestamp = now
+
     sendCastPlay(songId: song.id, title: song.title, startTime: 0.0)
   }
 
@@ -789,8 +802,15 @@ public class NestCastManager: NSObject, MusicPlayable {
     guard var player = player ?? (UIApplication.shared.delegate as? AppDelegate)?.player else { return }
     player.volume = 0.0
 
+    let now = Date().timeIntervalSince1970
+    if now - lastCastPlayTimestamp < 1.5 {
+      // Just sent a play command, ignore redundant trigger
+      return
+    }
+
     if let currentSong = player.currentlyPlaying, currentSong.id != lastCastingSongId {
       lastCastingSongId = currentSong.id
+      lastCastPlayTimestamp = now
       sendCastPlay(songId: currentSong.id, title: currentSong.title, startTime: player.elapsedTime)
     } else {
       sendCastControl(action: "resume")
@@ -799,6 +819,11 @@ public class NestCastManager: NSObject, MusicPlayable {
 
   public func didPause() {
     guard isCasting else { return }
+    let now = Date().timeIntervalSince1970
+    if now - lastCastPlayTimestamp < 1.2 {
+      // Ignore transient pause right after song load
+      return
+    }
     sendCastControl(action: "pause")
   }
 
@@ -833,25 +858,12 @@ public class NestCastManager: NSObject, MusicPlayable {
       payload["id"] = songId
     }
 
-    guard let jsonData = try? JSONSerialization.data(withJSONObject: payload) else { return }
-
-    for base in endpoints {
-      guard let url = URL(string: "\(base)/api/cast/play") else { continue }
-      var req = URLRequest(url: url)
-      req.httpMethod = "POST"
-      req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-      req.httpBody = jsonData
-      req.timeoutInterval = 4.0
-
-      URLSession.shared.dataTask(with: req) { [weak self] data, _, _ in
-        if let data = data,
-           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let vol = json["volume"] as? Double {
-          Task { @MainActor in
-            self?.remoteVolume = Float(vol)
-          }
+    sendPayload(path: "/api/cast/play", payload: payload) { [weak self] json in
+      if let vol = json?["volume"] as? Double {
+        Task { @MainActor in
+          self?.remoteVolume = Float(vol)
         }
-      }.resume()
+      }
     }
   }
 
@@ -860,18 +872,52 @@ public class NestCastManager: NSObject, MusicPlayable {
     for (k, v) in extra {
       payload[k] = v
     }
+    sendPayload(path: "/api/cast/control", payload: payload, completion: nil)
+  }
 
+  private func sendPayload(path: String, payload: [String: Any], completion: (([String: Any]?) -> Void)?) {
     guard let jsonData = try? JSONSerialization.data(withJSONObject: payload) else { return }
 
-    for base in endpoints {
-      guard let url = URL(string: "\(base)/api/cast/control") else { continue }
-      var req = URLRequest(url: url)
-      req.httpMethod = "POST"
-      req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-      req.httpBody = jsonData
-      req.timeoutInterval = 3.0
-      URLSession.shared.dataTask(with: req).resume()
-    }
+    let primaryUrl = "\(activeBaseUrl)\(path)"
+    guard let url = URL(string: primaryUrl) else { return }
+
+    var req = URLRequest(url: url)
+    req.httpMethod = "POST"
+    req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    req.httpBody = jsonData
+
+    castSession.dataTask(with: req) { [weak self] data, response, error in
+      if error != nil {
+        // Fallback to secondary URL once if primary failed
+        guard let self = self else { return }
+        Task { @MainActor in
+          let altBase = (self.activeBaseUrl == self.fallbackBaseUrl) ? "http://192.168.100.90:4550" : self.fallbackBaseUrl
+          guard let altUrl = URL(string: "\(altBase)\(path)") else { return }
+          var altReq = URLRequest(url: altUrl)
+          altReq.httpMethod = "POST"
+          altReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+          altReq.httpBody = jsonData
+
+          self.castSession.dataTask(with: altReq) { data2, resp2, err2 in
+            if err2 == nil {
+              Task { @MainActor in
+                self.activeBaseUrl = altBase
+              }
+            }
+            if let data2 = data2,
+               let json = try? JSONSerialization.jsonObject(with: data2) as? [String: Any] {
+              completion?(json)
+            }
+          }.resume()
+        }
+        return
+      }
+
+      if let data = data,
+         let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+        completion?(json)
+      }
+    }.resume()
   }
 
   private func presentAlert(_ alert: UIAlertController, from rootView: UIView) {
