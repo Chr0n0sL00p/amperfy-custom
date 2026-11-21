@@ -33,7 +33,11 @@ public enum RemoteStatus: Int {
 // MARK: - AbstractLibraryEntity
 
 public class AbstractLibraryEntity {
-  public let managedObject: AbstractLibraryEntityMO
+  private let managedObject: AbstractLibraryEntityMO
+
+  public var isEntityFaultOrDeleted: Bool {
+    managedObject.isDeleted || managedObject.managedObjectContext == nil
+  }
 
   static var typeName: String {
     String(describing: Self.self)
