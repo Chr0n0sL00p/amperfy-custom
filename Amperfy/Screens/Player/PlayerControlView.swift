@@ -81,6 +81,11 @@ class PlayerControlView: UIView {
     self.layoutMargins = Self.margin
     self.player = appDelegate.player
     player.addNotifier(notifier: self)
+    NotificationCenter.default.addObserver(self, selector: #selector(nestCastStateChanged), name: .nestCastStateChanged, object: nil)
+  }
+
+  @objc private func nestCastStateChanged() {
+    refreshPlayer()
   }
 
   func prepare(toWorkOnRootView: PopupPlayerVC?) {
@@ -185,10 +190,17 @@ class PlayerControlView: UIView {
 
     sliderMenuView.slider.minimumValue = 0
     sliderMenuView.slider.maximumValue = 100
-    sliderMenuView.slider.value = appDelegate.player.volume * 100
 
-    sliderMenuView.sliderValueChangedCB = {
-      self.appDelegate.player.volume = Float(sliderMenuView.slider.value) / 100.0
+    if NestCastManager.shared.isCasting {
+      sliderMenuView.slider.value = NestCastManager.shared.remoteVolume * 100
+      sliderMenuView.sliderValueChangedCB = {
+        NestCastManager.shared.setVolume(Float(sliderMenuView.slider.value) / 100.0)
+      }
+    } else {
+      sliderMenuView.slider.value = appDelegate.player.volume * 100
+      sliderMenuView.sliderValueChangedCB = {
+        self.appDelegate.player.volume = Float(sliderMenuView.slider.value) / 100.0
+      }
     }
 
     popoverContentController.modalPresentationStyle = .popover
@@ -232,6 +244,7 @@ class PlayerControlView: UIView {
   }
 
   func refreshPlayer() {
+    airplayButton.tintColor = NestCastManager.shared.isCasting ? .systemCyan : .label
     playerHandler?.refreshSkipButtons(
       skipBackwardButton: skipBackwardButton,
       skipForwardButton: skipForwardButton

@@ -583,6 +583,7 @@ class MiniPlayerView: UIView {
     super.init(frame: .zero)
 
     player.addNotifier(notifier: self)
+    NotificationCenter.default.addObserver(self, selector: #selector(nestCastStateChanged), name: .nestCastStateChanged, object: nil)
 
     registerForTraitChanges(
       [UITraitUserInterfaceStyle.self, UITraitHorizontalSizeClass.self],
@@ -894,7 +895,12 @@ class MiniPlayerView: UIView {
     return overlay
   }
 
+  @objc private func nestCastStateChanged() {
+    refreshPlayer()
+  }
+
   func refreshPlayer() {
+    airplayButton.tintColor = NestCastManager.shared.isCasting ? .systemCyan : .label
     if traitCollection.userInterfaceStyle == .dark {
       titleLabel.textColor = .white
       subtitleLabel.textColor = .lightGray
@@ -959,10 +965,17 @@ class MiniPlayerView: UIView {
 
     sliderMenuView.slider.minimumValue = 0
     sliderMenuView.slider.maximumValue = 100
-    sliderMenuView.slider.value = appDelegate.player.volume * 100
 
-    sliderMenuView.sliderValueChangedCB = {
-      self.appDelegate.player.volume = Float(sliderMenuView.slider.value) / 100.0
+    if NestCastManager.shared.isCasting {
+      sliderMenuView.slider.value = NestCastManager.shared.remoteVolume * 100
+      sliderMenuView.sliderValueChangedCB = {
+        NestCastManager.shared.setVolume(Float(sliderMenuView.slider.value) / 100.0)
+      }
+    } else {
+      sliderMenuView.slider.value = appDelegate.player.volume * 100
+      sliderMenuView.sliderValueChangedCB = {
+        self.appDelegate.player.volume = Float(sliderMenuView.slider.value) / 100.0
+      }
     }
 
     popoverContentController.modalPresentationStyle = .popover

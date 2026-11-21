@@ -20,6 +20,7 @@
 //
 
 import AmperfyKit
+import CoreMedia
 import MediaPlayer
 import UIKit
 
@@ -58,11 +59,17 @@ class PlayerUIHandler: NSObject {
   func skipBackwardButtonPushed() {
     Haptics.light.vibrate(isHapticsEnabled: appDelegate.storage.settings.user.isHapticsEnabled)
     player.skipBackward(interval: player.skipBackwardMusicInterval)
+    if NestCastManager.shared.isCasting {
+      NestCastManager.shared.seek(to: player.elapsedTime)
+    }
   }
 
   func skipForwardButtonPushed() {
     Haptics.light.vibrate(isHapticsEnabled: appDelegate.storage.settings.user.isHapticsEnabled)
     player.skipForward(interval: player.skipForwardMusicInterval)
+    if NestCastManager.shared.isCasting {
+      NestCastManager.shared.seek(to: player.elapsedTime)
+    }
   }
 
   func previousButtonPushed() {
@@ -385,20 +392,32 @@ class PlayerUIHandler: NSObject {
         presenter = presented
       }
 
+      let isCasting = NestCastManager.shared.isCasting
       let alert = UIAlertController(
         title: "Dispositivo de Audio",
-        message: "Selecciona dónde reproducir la música:",
+        message: isCasting
+          ? "Actualmente transmitiendo a Google Nest Mini (Comedor)."
+          : "Selecciona dónde reproducir la música:",
         preferredStyle: .actionSheet
       )
+
+      if isCasting {
+        alert.addAction(UIAlertAction(title: "Desconectar Google Nest Mini (Volver al iPhone)", style: .destructive, handler: { _ in
+          NestCastManager.shared.disconnect(rootView: rootView)
+        }))
+
+        alert.addAction(UIAlertAction(title: "Ajustar Volumen de Nest Mini", style: .default, handler: { _ in
+          NestCastManager.shared.showVolumeSliderAlert(presenter: presenter)
+        }))
+      } else {
+        alert.addAction(UIAlertAction(title: "Google Nest Mini (Comedor)", style: .default, handler: { _ in
+          NestCastManager.shared.connect(rootView: rootView)
+        }))
+      }
 
       alert.addAction(UIAlertAction(title: "AirPlay / Bluetooth (iPhone, AirPods)", style: .default, handler: { [weak self] _ in
         guard let self = self else { return }
         self.triggerNativeAirPlay(rootView: rootView)
-      }))
-
-      alert.addAction(UIAlertAction(title: "Google Nest Mini (Comedor)", style: .default, handler: { [weak self] _ in
-        guard let self = self else { return }
-        self.castCurrentSongToNest(rootView: rootView)
       }))
 
       alert.addAction(UIAlertAction(title: "Cancelar", style: .cancel, handler: nil))
@@ -426,49 +445,6 @@ class PlayerUIHandler: NSObject {
     airplayVolume.removeFromSuperview()
   }
 
-  private func castCurrentSongToNest(rootView: UIView) {
-    let song = appDelegate.player.currentlyPlaying
-    let songTitle = song?.title ?? "Música"
-    let songId = song?.id ?? ""
-
-    let endpoints = [
-      "http://100.117.169.38:4550/api/cast/play",
-      "http://192.168.100.90:4550/api/cast/play"
-    ]
-
-    var payloadDict: [String: Any] = [
-      "title": songTitle
-    ]
-    if !songId.isEmpty {
-      payloadDict["id"] = songId
-    }
-
-    if let jsonData = try? JSONSerialization.data(withJSONObject: payloadDict) {
-      for urlString in endpoints {
-        guard let url = URL(string: urlString) else { continue }
-        var req = URLRequest(url: url)
-        req.httpMethod = "POST"
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.httpBody = jsonData
-        req.timeoutInterval = 4.0
-        URLSession.shared.dataTask(with: req).resume()
-      }
-    }
-
-    let alert = UIAlertController(
-      title: "Google Nest Mini",
-      message: "Transmitiendo \"\(songTitle)\" a Google Nest Mini (Comedor).",
-      preferredStyle: .alert
-    )
-    alert.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))
-
-    if let window = rootView.window, let rootVC = window.rootViewController {
-      var presenter = rootVC
-      while let p = presenter.presentedViewController { presenter = p }
-      presenter.present(alert, animated: true)
-    }
-  }
-
   var isLyricsButtonAllowedToDisplay: Bool {
     appDelegate.player.playerMode == .music && appDelegate.storage.settings.accounts
       .availableApiTypes.contains(.subsonic)
@@ -483,7 +459,11 @@ class PlayerUIHandler: NSObject {
   }
 
   func timeSliderChanged(timeSlider: UISlider) {
-    player.seek(toSecond: Double(timeSlider.value))
+    let target = Double(timeSlider.value)
+    player.seek(toSecond: target)
+    if NestCastManager.shared.isCasting {
+      NestCastManager.shared.seek(to: target)
+    }
   }
 
   func timeSliderIsChanging(
@@ -651,5 +631,254 @@ class PlayerUIHandler: NSObject {
       .text = (displayBitrateInKbps > 0) ? "\(formatText) \(displayBitrateInKbps) kbps" :
       "\(formatText)"
     playTypeIcon.tintColor = .label
+  }
+}
+
+// MARK: - NestCastState Notification
+
+extension Notification.Name {
+  public static let nestCastStateChanged = Notification.Name("de.amperfy.nestCast.stateChanged")
+}
+
+// MARK: - NestCastManager
+
+@MainActor
+public class NestCastManager: NSObject, MusicPlayable {
+  public static let shared = NestCastManager()
+
+  public private(set) var isCasting: Bool = false
+  public private(set) var remoteVolume: Float = 0.5
+  private var savedLocalVolume: Float = 1.0
+  private var lastCastingSongId: String? = nil
+
+  private let endpoints = [
+    "http://100.117.169.38:4550",
+    "http://192.168.100.90:4550"
+  ]
+
+  private var player: PlayerFacade?
+
+  public func setup(player: PlayerFacade) {
+    self.player = player
+    player.addNotifier(notifier: self)
+  }
+
+  // MARK: - Connect & Cast
+
+  public func connect(rootView: UIView) {
+    guard let player = player ?? (UIApplication.shared.delegate as? AppDelegate)?.player else { return }
+    self.player = player
+
+    guard let song = player.currentlyPlaying else {
+      let alert = UIAlertController(
+        title: "Google Nest Mini",
+        message: "No hay ninguna canción reproduciéndose en este momento.",
+        preferredStyle: .alert
+      )
+      alert.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))
+      presentAlert(alert, from: rootView)
+      return
+    }
+
+    let songTitle = song.title
+    let songId = song.id
+    let currentTime = player.elapsedTime
+
+    let currentVol = player.volume
+    if currentVol > 0.05 {
+      savedLocalVolume = currentVol
+    } else {
+      savedLocalVolume = 0.8
+    }
+
+    isCasting = true
+    lastCastingSongId = songId
+
+    // Mute local iPhone audio so only the Nest Mini sounds, but timeline keeps running
+    player.volume = 0.0
+
+    sendCastPlay(songId: songId, title: songTitle, startTime: currentTime)
+    NotificationCenter.default.post(name: .nestCastStateChanged, object: nil)
+
+    let alert = UIAlertController(
+      title: "Google Nest Mini (Comedor)",
+      message: "Transmitiendo \"\(songTitle)\" al parlante desde el minuto exacto.\nEl audio del iPhone se silenció.",
+      preferredStyle: .alert
+    )
+    alert.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))
+    presentAlert(alert, from: rootView)
+  }
+
+  // MARK: - Disconnect
+
+  public func disconnect(rootView: UIView? = nil) {
+    guard isCasting else { return }
+    isCasting = false
+    lastCastingSongId = nil
+
+    sendCastControl(action: "stop")
+    NotificationCenter.default.post(name: .nestCastStateChanged, object: nil)
+
+    if let player = player ?? (UIApplication.shared.delegate as? AppDelegate)?.player {
+      player.volume = savedLocalVolume > 0.05 ? savedLocalVolume : 0.8
+    }
+
+    if let rootView = rootView {
+      let alert = UIAlertController(
+        title: "Google Nest Mini",
+        message: "Desconectado. El audio ha vuelto a tu iPhone.",
+        preferredStyle: .alert
+      )
+      alert.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))
+      presentAlert(alert, from: rootView)
+    }
+  }
+
+  // MARK: - Volume Control
+
+  public func setVolume(_ volume: Float) {
+    guard isCasting else { return }
+    let clamped = max(0.0, min(1.0, volume))
+    remoteVolume = clamped
+    sendCastControl(action: "volume", extra: ["volume": clamped])
+  }
+
+  public func showVolumeSliderAlert(presenter: UIViewController) {
+    let alert = UIAlertController(
+      title: "Volumen Google Nest Mini",
+      message: "Nivel actual: \(Int(remoteVolume * 100))%\nSelecciona el volumen deseado:",
+      preferredStyle: .actionSheet
+    )
+    let volumes: [(String, Float)] = [
+      ("20%", 0.2),
+      ("40%", 0.4),
+      ("60%", 0.6),
+      ("80%", 0.8),
+      ("100%", 1.0)
+    ]
+    for (label, vol) in volumes {
+      alert.addAction(UIAlertAction(title: label, style: .default, handler: { [weak self] _ in
+        self?.setVolume(vol)
+      }))
+    }
+    alert.addAction(UIAlertAction(title: "Cancelar", style: .cancel, handler: nil))
+    presenter.present(alert, animated: true, completion: nil)
+  }
+
+  // MARK: - Seeking
+
+  public func seek(to second: Double) {
+    guard isCasting else { return }
+    sendCastControl(action: "seek", extra: ["time": second])
+  }
+
+  // MARK: - MusicPlayable Callbacks
+
+  public func didStartPlayingFromBeginning() {
+    guard isCasting else { return }
+    guard let player = player ?? (UIApplication.shared.delegate as? AppDelegate)?.player else { return }
+    player.volume = 0.0
+
+    guard let song = player.currentlyPlaying else { return }
+    lastCastingSongId = song.id
+    sendCastPlay(songId: song.id, title: song.title, startTime: 0.0)
+  }
+
+  public func didStartPlaying() {
+    guard isCasting else { return }
+    guard let player = player ?? (UIApplication.shared.delegate as? AppDelegate)?.player else { return }
+    player.volume = 0.0
+
+    if let currentSong = player.currentlyPlaying, currentSong.id != lastCastingSongId {
+      lastCastingSongId = currentSong.id
+      sendCastPlay(songId: currentSong.id, title: currentSong.title, startTime: player.elapsedTime)
+    } else {
+      sendCastControl(action: "resume")
+    }
+  }
+
+  public func didPause() {
+    guard isCasting else { return }
+    sendCastControl(action: "pause")
+  }
+
+  public func didStopPlaying() {
+    guard isCasting else { return }
+    sendCastControl(action: "stop")
+  }
+
+  public func didElapsedTimeChange() {
+    if isCasting, let player = player, player.volume > 0.01 {
+      savedLocalVolume = player.volume
+      player.volume = 0.0
+    }
+  }
+
+  public func didPlaylistChange() {}
+  public func didArtworkChange() {}
+  public func didNowPlayingInfoChange() {}
+  public func didShuffleChange() {}
+  public func didRepeatChange() {}
+  public func didPlaybackRateChange() {}
+
+  // MARK: - Networking
+
+  private func sendCastPlay(songId: String, title: String, startTime: Double) {
+    var payload: [String: Any] = [
+      "title": title,
+      "time": startTime,
+      "start_time": startTime
+    ]
+    if !songId.isEmpty {
+      payload["id"] = songId
+    }
+
+    guard let jsonData = try? JSONSerialization.data(withJSONObject: payload) else { return }
+
+    for base in endpoints {
+      guard let url = URL(string: "\(base)/api/cast/play") else { continue }
+      var req = URLRequest(url: url)
+      req.httpMethod = "POST"
+      req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+      req.httpBody = jsonData
+      req.timeoutInterval = 4.0
+
+      URLSession.shared.dataTask(with: req) { [weak self] data, _, _ in
+        if let data = data,
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let vol = json["volume"] as? Double {
+          Task { @MainActor in
+            self?.remoteVolume = Float(vol)
+          }
+        }
+      }.resume()
+    }
+  }
+
+  private func sendCastControl(action: String, extra: [String: Any] = [:]) {
+    var payload: [String: Any] = ["action": action]
+    for (k, v) in extra {
+      payload[k] = v
+    }
+
+    guard let jsonData = try? JSONSerialization.data(withJSONObject: payload) else { return }
+
+    for base in endpoints {
+      guard let url = URL(string: "\(base)/api/cast/control") else { continue }
+      var req = URLRequest(url: url)
+      req.httpMethod = "POST"
+      req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+      req.httpBody = jsonData
+      req.timeoutInterval = 3.0
+      URLSession.shared.dataTask(with: req).resume()
+    }
+  }
+
+  private func presentAlert(_ alert: UIAlertController, from rootView: UIView) {
+    if let window = rootView.window, let rootVC = window.rootViewController {
+      var presenter = rootVC
+      while let p = presenter.presentedViewController { presenter = p }
+      presenter.present(alert, animated: true)
+    }
   }
 }

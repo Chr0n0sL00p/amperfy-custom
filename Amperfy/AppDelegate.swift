@@ -306,6 +306,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     if !isAlreadyRegisteredToPlayer {
       isAlreadyRegisteredToPlayer = true
       player.addNotifier(notifier: self)
+      NestCastManager.shared.setup(player: player)
     }
   }
 
@@ -318,6 +319,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
     isAlreadyRegisteredToPlayer = true
     player.addNotifier(notifier: self)
+    NestCastManager.shared.setup(player: player)
   }
 
   func setAppTheme(theme: ThemePreference) {
