@@ -666,7 +666,7 @@ public class NestCastManager: NSObject, MusicPlayable {
   // MARK: - Connect & Cast
 
   public func connect(rootView: UIView) {
-    guard let player = player ?? (UIApplication.shared.delegate as? AppDelegate)?.player else { return }
+    guard var player = player ?? (UIApplication.shared.delegate as? AppDelegate)?.player else { return }
     self.player = player
 
     guard let song = player.currentlyPlaying else {
@@ -719,7 +719,7 @@ public class NestCastManager: NSObject, MusicPlayable {
     sendCastControl(action: "stop")
     NotificationCenter.default.post(name: .nestCastStateChanged, object: nil)
 
-    if let player = player ?? (UIApplication.shared.delegate as? AppDelegate)?.player {
+    if var player = player ?? (UIApplication.shared.delegate as? AppDelegate)?.player {
       player.volume = savedLocalVolume > 0.05 ? savedLocalVolume : 0.8
     }
 
@@ -776,7 +776,7 @@ public class NestCastManager: NSObject, MusicPlayable {
 
   public func didStartPlayingFromBeginning() {
     guard isCasting else { return }
-    guard let player = player ?? (UIApplication.shared.delegate as? AppDelegate)?.player else { return }
+    guard var player = player ?? (UIApplication.shared.delegate as? AppDelegate)?.player else { return }
     player.volume = 0.0
 
     guard let song = player.currentlyPlaying else { return }
@@ -786,7 +786,7 @@ public class NestCastManager: NSObject, MusicPlayable {
 
   public func didStartPlaying() {
     guard isCasting else { return }
-    guard let player = player ?? (UIApplication.shared.delegate as? AppDelegate)?.player else { return }
+    guard var player = player ?? (UIApplication.shared.delegate as? AppDelegate)?.player else { return }
     player.volume = 0.0
 
     if let currentSong = player.currentlyPlaying, currentSong.id != lastCastingSongId {
@@ -808,7 +808,7 @@ public class NestCastManager: NSObject, MusicPlayable {
   }
 
   public func didElapsedTimeChange() {
-    if isCasting, let player = player, player.volume > 0.01 {
+    if isCasting, var player = player, player.volume > 0.01 {
       savedLocalVolume = player.volume
       player.volume = 0.0
     }
