@@ -810,8 +810,8 @@ public struct AppReleaseInfo: Sendable {
 public class UpdateManager: NSObject {
   public static let shared = UpdateManager()
 
-  public static let currentAppVersion = "1.5"
-  public static let currentBuildTag = "v1.5"
+  public static let currentAppVersion = "1.6"
+  public static let currentBuildTag = "v1.6"
 
   private var isChecking = false
   private var lastCheckDate: Date?

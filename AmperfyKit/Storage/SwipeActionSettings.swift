@@ -41,13 +41,13 @@ public enum SwipeActionType: Int, CaseIterable, Sendable, Codable {
   public var displayName: String {
     switch self {
     case .insertUserQueue:
-      return "Insert User Queue"
+      return "Añadir siguiente"
     case .appendUserQueue:
-      return "Append User Queue"
+      return "Añadir al final de cola"
     case .insertContextQueue:
-      return "Insert Context Queue"
+      return "Insertar en cola"
     case .appendContextQueue:
-      return "Append Context Queue"
+      return "Añadir en cola"
     case .download:
       return "Download"
     case .removeFromCache:
@@ -70,13 +70,13 @@ public enum SwipeActionType: Int, CaseIterable, Sendable, Codable {
   public var settingsName: String {
     switch self {
     case .insertUserQueue:
-      return "Insert in User Queue"
+      return "Añadir siguiente a la cola"
     case .appendUserQueue:
-      return "Append to User Queue"
+      return "Añadir al final de la cola"
     case .insertContextQueue:
-      return "Insert in Context Queue"
+      return "Insertar en cola"
     case .appendContextQueue:
-      return "Append to Context Queue"
+      return "Añadir en cola"
     case .download:
       return "Download"
     case .removeFromCache:
@@ -183,15 +183,11 @@ public struct SwipeActionSettings: Sendable, Codable {
   public static var defaultSettings: SwipeActionSettings {
     SwipeActionSettings(
       leading: [
-        .appendContextQueue,
-        .insertContextQueue,
-
+        .insertUserQueue,
       ], trailing: [
         .appendUserQueue,
-        .insertUserQueue,
-        .appendPodcastQueue,
-        .insertPodcastQueue,
         .download,
+        .favorite,
       ]
     )
   }

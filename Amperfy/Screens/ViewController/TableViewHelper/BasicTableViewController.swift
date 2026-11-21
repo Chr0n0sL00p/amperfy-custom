@@ -235,10 +235,40 @@ class BasicTableViewController: KeyCommandTableViewController {
     leadingSwipeActionsConfigurationForRowAt indexPath: IndexPath
   )
     -> UISwipeActionsConfiguration? {
-    createSwipeActionsConfiguration(
-      for: appDelegate.storage.settings.user.swipeActionSettings.leading,
-      at: indexPath
-    )
+    guard !(tableView.isEditing && !isSingleCellEditingModeActive) else { return nil }
+    guard let swipeCB = swipeCallback,
+          let containableCB = containableAtIndexPathCallback,
+          let containable = containableCB(indexPath)
+    else { return nil }
+
+    let action = UIContextualAction(
+      style: .normal,
+      title: "Siguiente"
+    ) { [weak self] action, view, completionHandler in
+      guard let self = self else {
+        completionHandler(false)
+        return
+      }
+      Haptics.success.vibrate(isHapticsEnabled: self.appDelegate.storage.settings.user.isHapticsEnabled)
+      swipeCB(indexPath) { actionContext in
+        guard let actionContext = actionContext else {
+          completionHandler(false)
+          return
+        }
+        let playables = actionContext.playables
+          .filterCached(dependigOn: self.appDelegate.storage.settings.user.isOfflineMode)
+        self.appDelegate.player.insertUserQueue(playables: playables)
+        completionHandler(true)
+      }
+    }
+
+    action.image = UIImage(systemName: "text.insert") ?? UIImage.userQueueInsert.withTintColor(.white)
+    let themePref = appDelegate.storage.settings.accounts.activeSetting.read.themePreference
+    action.backgroundColor = themePref.asColor
+
+    let config = UISwipeActionsConfiguration(actions: [action])
+    config.performsFirstActionWithFullSwipe = true
+    return config
   }
 
   override func tableView(
