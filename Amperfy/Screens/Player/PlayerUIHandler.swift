@@ -858,13 +858,7 @@ public class NestCastManager: NSObject, MusicPlayable {
       payload["id"] = songId
     }
 
-    sendPayload(path: "/api/cast/play", payload: payload) { [weak self] json in
-      if let vol = json?["volume"] as? Double {
-        Task { @MainActor in
-          self?.remoteVolume = Float(vol)
-        }
-      }
-    }
+    sendPayload(path: "/api/cast/play", payload: payload)
   }
 
   private func sendCastControl(action: String, extra: [String: Any] = [:]) {
@@ -872,10 +866,10 @@ public class NestCastManager: NSObject, MusicPlayable {
     for (k, v) in extra {
       payload[k] = v
     }
-    sendPayload(path: "/api/cast/control", payload: payload, completion: nil)
+    sendPayload(path: "/api/cast/control", payload: payload)
   }
 
-  private func sendPayload(path: String, payload: [String: Any], completion: (([String: Any]?) -> Void)?) {
+  private func sendPayload(path: String, payload: [String: Any]) {
     guard let jsonData = try? JSONSerialization.data(withJSONObject: payload) else { return }
 
     let primaryUrl = "\(activeBaseUrl)\(path)"
@@ -898,15 +892,18 @@ public class NestCastManager: NSObject, MusicPlayable {
           altReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
           altReq.httpBody = jsonData
 
-          self.castSession.dataTask(with: altReq) { data2, resp2, err2 in
+          self.castSession.dataTask(with: altReq) { [weak self] data2, _, err2 in
             if err2 == nil {
               Task { @MainActor in
-                self.activeBaseUrl = altBase
+                self?.activeBaseUrl = altBase
               }
             }
             if let data2 = data2,
-               let json = try? JSONSerialization.jsonObject(with: data2) as? [String: Any] {
-              completion?(json)
+               let json = try? JSONSerialization.jsonObject(with: data2) as? [String: Any],
+               let vol = json["volume"] as? Double {
+              Task { @MainActor in
+                self?.remoteVolume = Float(vol)
+              }
             }
           }.resume()
         }
@@ -914,8 +911,11 @@ public class NestCastManager: NSObject, MusicPlayable {
       }
 
       if let data = data,
-         let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-        completion?(json)
+         let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+         let vol = json["volume"] as? Double {
+        Task { @MainActor in
+          self?.remoteVolume = Float(vol)
+        }
       }
     }.resume()
   }
