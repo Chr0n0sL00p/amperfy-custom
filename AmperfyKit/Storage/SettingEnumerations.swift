@@ -334,6 +334,14 @@ public enum ThemePreference: Int, CaseIterable, Sendable, Codable {
       return UIColor(white: 0.75, alpha: 1.0)
     }
   }
+
+  public var isFrutigerAero: Bool { self == .frutigerAero }
+  public var isCyberpunk: Bool { self == .cyberpunk }
+  public var isMinimalist: Bool { self == .minimalist }
+
+  public var hasCustomAesthetic: Bool {
+    self == .frutigerAero || self == .cyberpunk || self == .minimalist
+  }
 }
 
 // MARK: - CacheTranscodingFormatPreference

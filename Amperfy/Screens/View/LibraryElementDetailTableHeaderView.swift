@@ -119,18 +119,131 @@ class LibraryElementDetailTableHeaderView: UIView {
     infoContainerView.isHidden = config
       .isInfoAlwaysHidden || (traitCollection.horizontalSizeClass == .compact)
     infoLabel.text = config.infoCB?() ?? ""
+    applyThemeToButtons()
   }
 
   @IBAction
   func playAllButtonPressed(_ sender: Any) {
     Haptics.success.vibrate(isHapticsEnabled: appDelegate.storage.settings.user.isHapticsEnabled)
+    animateButtonPress(playAllButton)
     play(isShuffled: false)
   }
 
   @IBAction
   func addAllShuffledButtonPressed(_ sender: Any) {
     Haptics.success.vibrate(isHapticsEnabled: appDelegate.storage.settings.user.isHapticsEnabled)
+    animateButtonPress(playShuffledButton)
     shuffle()
+  }
+
+  private func animateButtonPress(_ button: UIButton) {
+    let theme = appDelegate.storage.settings.accounts.activeSetting.read.themePreference
+    switch theme {
+    case .frutigerAero:
+      UIView.animate(withDuration: 0.12, animations: {
+        button.transform = CGAffineTransform(scaleX: 0.92, y: 0.92)
+      }, completion: { _ in
+        UIView.animate(withDuration: 0.45, delay: 0, usingSpringWithDamping: 0.55, initialSpringVelocity: 0.8, animations: {
+          button.transform = .identity
+        })
+      })
+    case .cyberpunk:
+      UIView.animate(withDuration: 0.08, animations: {
+        button.transform = CGAffineTransform(scaleX: 0.95, y: 0.95)
+        button.layer.shadowRadius = 14.0
+      }, completion: { _ in
+        UIView.animate(withDuration: 0.12, animations: {
+          button.transform = .identity
+          button.layer.shadowRadius = 8.0
+        })
+      })
+    case .minimalist:
+      UIView.animate(withDuration: 0.15, animations: {
+        button.alpha = 0.5
+      }, completion: { _ in
+        UIView.animate(withDuration: 0.2, animations: {
+          button.alpha = 1.0
+        })
+      })
+    default:
+      break
+    }
+  }
+
+  func applyThemeToButtons() {
+    let theme = appDelegate.storage.settings.accounts.activeSetting.read.themePreference
+    switch theme {
+    case .frutigerAero:
+      playAllButton.backgroundColor = UIColor(red: 0.0, green: 0.78, blue: 0.92, alpha: 0.9)
+      playAllButton.setTitleColor(.white, for: .normal)
+      playAllButton.tintColor = .white
+      playAllButton.layer.cornerRadius = 14.0
+      playAllButton.layer.borderWidth = 1.0
+      playAllButton.layer.borderColor = UIColor.white.withAlphaComponent(0.6).cgColor
+      playAllButton.layer.shadowColor = UIColor(red: 0.0, green: 0.8, blue: 0.95, alpha: 0.5).cgColor
+      playAllButton.layer.shadowOpacity = 0.6
+      playAllButton.layer.shadowRadius = 8.0
+      playAllButton.layer.shadowOffset = CGSize(width: 0, height: 2)
+
+      playShuffledButton.backgroundColor = UIColor(red: 0.0, green: 0.78, blue: 0.92, alpha: 0.9)
+      playShuffledButton.setTitleColor(.white, for: .normal)
+      playShuffledButton.tintColor = .white
+      playShuffledButton.layer.cornerRadius = 14.0
+      playShuffledButton.layer.borderWidth = 1.0
+      playShuffledButton.layer.borderColor = UIColor.white.withAlphaComponent(0.6).cgColor
+      playShuffledButton.layer.shadowColor = UIColor(red: 0.0, green: 0.8, blue: 0.95, alpha: 0.5).cgColor
+      playShuffledButton.layer.shadowOpacity = 0.6
+      playShuffledButton.layer.shadowRadius = 8.0
+      playShuffledButton.layer.shadowOffset = CGSize(width: 0, height: 2)
+
+    case .cyberpunk:
+      playAllButton.backgroundColor = UIColor.black
+      playAllButton.setTitleColor(UIColor(red: 0.0, green: 1.0, blue: 0.9, alpha: 1.0), for: .normal)
+      playAllButton.tintColor = UIColor(red: 0.0, green: 1.0, blue: 0.9, alpha: 1.0)
+      playAllButton.layer.cornerRadius = 4.0
+      playAllButton.layer.borderWidth = 1.5
+      playAllButton.layer.borderColor = UIColor(red: 0.0, green: 1.0, blue: 0.9, alpha: 0.8).cgColor
+      playAllButton.layer.shadowColor = UIColor(red: 0.0, green: 1.0, blue: 0.9, alpha: 1.0).cgColor
+      playAllButton.layer.shadowOpacity = 0.8
+      playAllButton.layer.shadowRadius = 8.0
+      playAllButton.layer.shadowOffset = .zero
+
+      playShuffledButton.backgroundColor = UIColor.black
+      playShuffledButton.setTitleColor(UIColor(red: 1.0, green: 0.0, blue: 0.55, alpha: 1.0), for: .normal)
+      playShuffledButton.tintColor = UIColor(red: 1.0, green: 0.0, blue: 0.55, alpha: 1.0)
+      playShuffledButton.layer.cornerRadius = 4.0
+      playShuffledButton.layer.borderWidth = 1.5
+      playShuffledButton.layer.borderColor = UIColor(red: 1.0, green: 0.0, blue: 0.55, alpha: 0.8).cgColor
+      playShuffledButton.layer.shadowColor = UIColor(red: 1.0, green: 0.0, blue: 0.55, alpha: 1.0).cgColor
+      playShuffledButton.layer.shadowOpacity = 0.8
+      playShuffledButton.layer.shadowRadius = 8.0
+      playShuffledButton.layer.shadowOffset = .zero
+
+    case .minimalist:
+      playAllButton.backgroundColor = UIColor.secondarySystemFill
+      playAllButton.setTitleColor(.label, for: .normal)
+      playAllButton.tintColor = .label
+      playAllButton.layer.cornerRadius = 10.0
+      playAllButton.layer.borderWidth = 0.5
+      playAllButton.layer.borderColor = UIColor.separator.cgColor
+      playAllButton.layer.shadowOpacity = 0.0
+
+      playShuffledButton.backgroundColor = UIColor.secondarySystemFill
+      playShuffledButton.setTitleColor(.label, for: .normal)
+      playShuffledButton.tintColor = .label
+      playShuffledButton.layer.cornerRadius = 10.0
+      playShuffledButton.layer.borderWidth = 0.5
+      playShuffledButton.layer.borderColor = UIColor.separator.cgColor
+      playShuffledButton.layer.shadowOpacity = 0.0
+
+    default:
+      playAllButton.backgroundColor = .systemGray6
+      playAllButton.layer.cornerRadius = 10.0
+      playAllButton.layer.shadowOpacity = 0.0
+      playShuffledButton.backgroundColor = .systemGray6
+      playShuffledButton.layer.cornerRadius = 10.0
+      playShuffledButton.layer.shadowOpacity = 0.0
+    }
   }
 
   private func play(isShuffled: Bool) {
@@ -155,13 +268,12 @@ class LibraryElementDetailTableHeaderView: UIView {
   func prepare(configuration: PlayShuffleInfoConfiguration) {
     config = configuration
     playAllButton.setTitle(config?.customPlayName ?? "Play", for: .normal)
-    playAllButton.layer.cornerRadius = 10.0
     playShuffledButton.setTitle(
       configuration.isShuffleOnContextNeccessary ? "Shuffle" : "Random",
       for: .normal
     )
-    playShuffledButton.layer.cornerRadius = 10.0
     playShuffledButton.isHidden = configuration.isShuffleHidden
+    applyThemeToButtons()
     activate()
     registerForTraitChanges(
       [UITraitUserInterfaceStyle.self, UITraitHorizontalSizeClass.self],

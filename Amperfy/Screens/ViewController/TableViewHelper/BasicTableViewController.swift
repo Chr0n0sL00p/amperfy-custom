@@ -119,6 +119,10 @@ class BasicTableViewController: KeyCommandTableViewController {
 
   override func viewDidLoad() {
     super.viewDidLoad()
+    if appDelegate.storage.settings.accounts.activeSetting.read.themePreference.hasCustomAesthetic {
+      tableView.backgroundColor = .clear
+      view.backgroundColor = .clear
+    }
     tableView.keyboardDismissMode = .onDrag
     appDelegate.notificationHandler.register(
       self,

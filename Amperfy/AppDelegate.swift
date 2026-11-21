@@ -323,6 +323,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
   func setAppTheme(theme: ThemePreference) {
     let color = theme.asColor
     UIView.appearance().tintColor = color
+    ThemeBackgroundView.shared.applyTheme(theme)
 
     let navBarAppearance = UINavigationBarAppearance()
     let tabBarAppearance = UITabBarAppearance()
@@ -331,20 +332,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     case .frutigerAero:
       navBarAppearance.configureWithDefaultBackground()
       navBarAppearance.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterial)
-      navBarAppearance.backgroundColor = UIColor(red: 0.0, green: 0.8, blue: 0.95, alpha: 0.12)
-      navBarAppearance.titleTextAttributes = [.foregroundColor: UIColor.label]
+      navBarAppearance.backgroundColor = UIColor(red: 0.0, green: 0.8, blue: 0.95, alpha: 0.18)
+      navBarAppearance.titleTextAttributes = [.foregroundColor: UIColor.white]
 
       tabBarAppearance.configureWithDefaultBackground()
       tabBarAppearance.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterial)
-      tabBarAppearance.backgroundColor = UIColor(red: 0.0, green: 0.8, blue: 0.95, alpha: 0.12)
+      tabBarAppearance.backgroundColor = UIColor(red: 0.0, green: 0.8, blue: 0.95, alpha: 0.18)
 
     case .cyberpunk:
       navBarAppearance.configureWithOpaqueBackground()
-      navBarAppearance.backgroundColor = UIColor.black
+      navBarAppearance.backgroundColor = UIColor(red: 0.02, green: 0.0, blue: 0.05, alpha: 1.0)
       navBarAppearance.titleTextAttributes = [.foregroundColor: UIColor(red: 0.0, green: 1.0, blue: 0.9, alpha: 1.0)]
 
       tabBarAppearance.configureWithOpaqueBackground()
-      tabBarAppearance.backgroundColor = UIColor.black
+      tabBarAppearance.backgroundColor = UIColor(red: 0.02, green: 0.0, blue: 0.05, alpha: 1.0)
 
     case .minimalist:
       navBarAppearance.configureWithTransparentBackground()

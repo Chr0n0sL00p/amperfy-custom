@@ -44,6 +44,16 @@ class TabBarVC: UITabBarController {
 
   override func viewDidLoad() {
     super.viewDidLoad()
+    ThemeBackgroundView.shared.translatesAutoresizingMaskIntoConstraints = false
+    view.insertSubview(ThemeBackgroundView.shared, at: 0)
+    NSLayoutConstraint.activate([
+      ThemeBackgroundView.shared.topAnchor.constraint(equalTo: view.topAnchor),
+      ThemeBackgroundView.shared.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+      ThemeBackgroundView.shared.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+      ThemeBackgroundView.shared.trailingAnchor.constraint(equalTo: view.trailingAnchor)
+    ])
+    ThemeBackgroundView.shared.applyTheme(appDelegate.storage.settings.accounts.activeSetting.read.themePreference)
+
     var fixTabs = [UITab]()
 
     searchTab = UISearchTab { _ in

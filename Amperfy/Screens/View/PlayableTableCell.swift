@@ -322,6 +322,18 @@ class PlayableTableCell: BasicTableCell {
       theme: themePreference,
       container: playable
     )
+    if themePreference == .frutigerAero {
+      entityImage.layer.cornerRadius = 8.0
+      entityImage.layer.borderWidth = 0.5
+      entityImage.layer.borderColor = UIColor.white.withAlphaComponent(0.35).cgColor
+      entityImage.clipsToBounds = true
+      titleLabel.textColor = .white
+    } else if themePreference == .cyberpunk {
+      entityImage.layer.cornerRadius = 3.0
+      entityImage.layer.borderWidth = 1.0
+      entityImage.layer.borderColor = UIColor(red: 0.0, green: 1.0, blue: 0.9, alpha: 0.6).cgColor
+      entityImage.clipsToBounds = true
+    }
     configurePlayIndicator(playable: playable)
 
     if displayMode == .selection {
@@ -610,6 +622,34 @@ class PlayableTableCell: BasicTableCell {
   func tap(sender: UITapGestureRecognizer) {
     switch sender.state {
     case .ended:
+      let themePreference = appDelegate.storage.settings.accounts
+        .getSetting(playable?.account?.info).read.themePreference
+      if themePreference == .frutigerAero {
+        UIView.animate(withDuration: 0.1, animations: {
+          self.contentView.transform = CGAffineTransform(scaleX: 0.96, y: 0.96)
+        }, completion: { _ in
+          UIView.animate(withDuration: 0.35, delay: 0, usingSpringWithDamping: 0.6, initialSpringVelocity: 0.8, animations: {
+            self.contentView.transform = .identity
+          })
+        })
+      } else if themePreference == .cyberpunk {
+        UIView.animate(withDuration: 0.08, animations: {
+          self.contentView.alpha = 0.6
+        }, completion: { _ in
+          UIView.animate(withDuration: 0.12, animations: {
+            self.contentView.alpha = 1.0
+          })
+        })
+      } else if themePreference == .minimalist {
+        UIView.animate(withDuration: 0.12, animations: {
+          self.contentView.alpha = 0.7
+        }, completion: { _ in
+          UIView.animate(withDuration: 0.18, animations: {
+            self.contentView.alpha = 1.0
+          })
+        })
+      }
+
       if displayMode == .normal {
         playThisSong()
       }
