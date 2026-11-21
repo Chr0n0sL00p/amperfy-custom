@@ -330,22 +330,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     switch theme {
     case .frutigerAero:
-      navBarAppearance.configureWithDefaultBackground()
-      navBarAppearance.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterial)
-      navBarAppearance.backgroundColor = UIColor(red: 0.0, green: 0.8, blue: 0.95, alpha: 0.18)
+      navBarAppearance.configureWithTransparentBackground()
       navBarAppearance.titleTextAttributes = [.foregroundColor: UIColor.white]
 
       tabBarAppearance.configureWithDefaultBackground()
       tabBarAppearance.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterial)
-      tabBarAppearance.backgroundColor = UIColor(red: 0.0, green: 0.8, blue: 0.95, alpha: 0.18)
+      tabBarAppearance.backgroundColor = UIColor(red: 0.0, green: 0.78, blue: 0.92, alpha: 0.25)
 
     case .cyberpunk:
-      navBarAppearance.configureWithOpaqueBackground()
-      navBarAppearance.backgroundColor = UIColor(red: 0.02, green: 0.0, blue: 0.05, alpha: 1.0)
-      navBarAppearance.titleTextAttributes = [.foregroundColor: UIColor(red: 0.0, green: 1.0, blue: 0.9, alpha: 1.0)]
+      navBarAppearance.configureWithTransparentBackground()
+      navBarAppearance.titleTextAttributes = [.foregroundColor: UIColor.white]
 
-      tabBarAppearance.configureWithOpaqueBackground()
-      tabBarAppearance.backgroundColor = UIColor(red: 0.02, green: 0.0, blue: 0.05, alpha: 1.0)
+      tabBarAppearance.configureWithDefaultBackground()
+      tabBarAppearance.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterial)
+      tabBarAppearance.backgroundColor = UIColor(red: 0.09, green: 0.04, blue: 0.18, alpha: 0.88)
 
     case .minimalist:
       navBarAppearance.configureWithTransparentBackground()

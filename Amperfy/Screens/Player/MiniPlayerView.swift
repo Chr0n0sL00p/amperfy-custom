@@ -667,7 +667,15 @@ class MiniPlayerView: UIView {
     playerHandler = PlayerUIHandler(player: player, style: .miniPlayeriOS)
     let miniPlayerGotTouchedView = UIView()
     let tapGesture = UITapGestureRecognizer(target: self, action: #selector(miniPlayerGotTouched))
+    let swipeLeft = UISwipeGestureRecognizer(target: self, action: #selector(handleMiniPlayerSwipeLeft))
+    swipeLeft.direction = .left
+    let swipeRight = UISwipeGestureRecognizer(target: self, action: #selector(handleMiniPlayerSwipeRight))
+    swipeRight.direction = .right
+    tapGesture.require(toFail: swipeLeft)
+    tapGesture.require(toFail: swipeRight)
     addGestureRecognizer(tapGesture)
+    addGestureRecognizer(swipeLeft)
+    addGestureRecognizer(swipeRight)
     miniPlayerGotTouchedView.translatesAutoresizingMaskIntoConstraints = false
     miniPlayerGotTouchedView.isAccessibilityElement = true
     miniPlayerGotTouchedView.accessibilityLabel = "Open Player"
@@ -753,6 +761,18 @@ class MiniPlayerView: UIView {
   @objc
   private func miniPlayerGotTouched(_ recognizer: UITapGestureRecognizer) {
     openPlayerView()
+  }
+
+  @objc
+  private func handleMiniPlayerSwipeLeft() {
+    Haptics.light.vibrate(isHapticsEnabled: appDelegate.storage.settings.user.isHapticsEnabled)
+    player.next()
+  }
+
+  @objc
+  private func handleMiniPlayerSwipeRight() {
+    Haptics.light.vibrate(isHapticsEnabled: appDelegate.storage.settings.user.isHapticsEnabled)
+    player.previous()
   }
 
   public func openPlayerView(completion: (() -> ())? = nil) {

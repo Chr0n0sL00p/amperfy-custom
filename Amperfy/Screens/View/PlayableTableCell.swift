@@ -254,7 +254,15 @@ class PlayableTableCell: BasicTableCell {
     isHovered = false
     register()
     tapGestureRecognizer.isEnabled = (displayMode == .normal)
-    backgroundColor = .systemBackground
+    selectionStyle = .none
+    let themePreference = appDelegate.storage.settings.accounts
+      .getSetting(playable?.account?.info).read.themePreference
+    if themePreference.hasCustomAesthetic {
+      backgroundColor = .clear
+      contentView.backgroundColor = .clear
+    } else {
+      backgroundColor = .systemBackground
+    }
     refresh()
   }
 
@@ -328,11 +336,14 @@ class PlayableTableCell: BasicTableCell {
       entityImage.layer.borderColor = UIColor.white.withAlphaComponent(0.35).cgColor
       entityImage.clipsToBounds = true
       titleLabel.textColor = .white
+      subtitleLabel.textColor = UIColor(white: 0.92, alpha: 1.0)
     } else if themePreference == .cyberpunk {
-      entityImage.layer.cornerRadius = 3.0
+      entityImage.layer.cornerRadius = 6.0
       entityImage.layer.borderWidth = 1.0
-      entityImage.layer.borderColor = UIColor(red: 0.0, green: 1.0, blue: 0.9, alpha: 0.6).cgColor
+      entityImage.layer.borderColor = UIColor(red: 1.0, green: 0.16, blue: 0.52, alpha: 0.8).cgColor
       entityImage.clipsToBounds = true
+      titleLabel.textColor = .white
+      subtitleLabel.textColor = UIColor(red: 0.0, green: 0.92, blue: 1.0, alpha: 0.95)
     }
     configurePlayIndicator(playable: playable)
 
@@ -625,26 +636,26 @@ class PlayableTableCell: BasicTableCell {
       let themePreference = appDelegate.storage.settings.accounts
         .getSetting(playable?.account?.info).read.themePreference
       if themePreference == .frutigerAero {
-        UIView.animate(withDuration: 0.1, animations: {
-          self.contentView.transform = CGAffineTransform(scaleX: 0.96, y: 0.96)
+        UIView.animate(withDuration: 0.08, animations: {
+          self.contentView.backgroundColor = UIColor.white.withAlphaComponent(0.2)
         }, completion: { _ in
-          UIView.animate(withDuration: 0.35, delay: 0, usingSpringWithDamping: 0.6, initialSpringVelocity: 0.8, animations: {
-            self.contentView.transform = .identity
+          UIView.animate(withDuration: 0.15, animations: {
+            self.contentView.backgroundColor = .clear
           })
         })
       } else if themePreference == .cyberpunk {
         UIView.animate(withDuration: 0.08, animations: {
-          self.contentView.alpha = 0.6
+          self.contentView.backgroundColor = UIColor(red: 1.0, green: 0.16, blue: 0.52, alpha: 0.25)
         }, completion: { _ in
-          UIView.animate(withDuration: 0.12, animations: {
-            self.contentView.alpha = 1.0
+          UIView.animate(withDuration: 0.15, animations: {
+            self.contentView.backgroundColor = .clear
           })
         })
       } else if themePreference == .minimalist {
-        UIView.animate(withDuration: 0.12, animations: {
-          self.contentView.alpha = 0.7
+        UIView.animate(withDuration: 0.08, animations: {
+          self.contentView.alpha = 0.5
         }, completion: { _ in
-          UIView.animate(withDuration: 0.18, animations: {
+          UIView.animate(withDuration: 0.12, animations: {
             self.contentView.alpha = 1.0
           })
         })

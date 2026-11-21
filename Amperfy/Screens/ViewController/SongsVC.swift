@@ -185,11 +185,14 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
 
   override func viewWillAppear(_ animated: Bool) {
     super.viewWillAppear(animated)
-    navigationController?.navigationBar.prefersLargeTitles = true
+    navigationController?.navigationBar.prefersLargeTitles = false
+    navigationItem.largeTitleDisplayMode = .never
   }
 
   override func viewIsAppearing(_ animated: Bool) {
     super.viewIsAppearing(animated)
+    navigationController?.navigationBar.prefersLargeTitles = false
+    navigationItem.largeTitleDisplayMode = .never
     extendSafeAreaToAccountForMiniPlayer()
     updateRightBarButtonItems()
     updateFromRemote()

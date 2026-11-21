@@ -338,6 +338,10 @@ class BasicTableViewController: KeyCommandTableViewController {
     }
   }
 
+  override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+    tableView.deselectRow(at: indexPath, animated: true)
+  }
+
   func createSwipeAction(
     for actionType: SwipeActionType,
     buttonColor: UIColor,

@@ -621,58 +621,24 @@ public class ThemeBackgroundView: UIView {
     switch theme {
     case .frutigerAero:
       gradientLayer.colors = [
-        UIColor(red: 0.08, green: 0.65, blue: 0.95, alpha: 1.0).cgColor,
-        UIColor(red: 0.0, green: 0.82, blue: 0.92, alpha: 1.0).cgColor,
-        UIColor(red: 0.0, green: 0.70, blue: 0.80, alpha: 1.0).cgColor
+        UIColor(red: 0.0, green: 0.70, blue: 0.88, alpha: 1.0).cgColor,
+        UIColor(red: 0.0, green: 0.78, blue: 0.92, alpha: 1.0).cgColor,
+        UIColor(red: 0.0, green: 0.65, blue: 0.82, alpha: 1.0).cgColor
       ]
       gradientLayer.locations = [0.0, 0.5, 1.0]
       gradientLayer.startPoint = CGPoint(x: 0.0, y: 0.0)
       gradientLayer.endPoint = CGPoint(x: 0.0, y: 1.0)
       gradientLayer.isHidden = false
 
-      let bubbleConfigs: [(xRel: CGFloat, yRel: CGFloat, size: CGFloat, alpha: CGFloat)] = [
-        (0.12, 0.16, 44, 0.22),
-        (0.85, 0.24, 60, 0.18),
-        (0.20, 0.50, 32, 0.16),
-        (0.80, 0.68, 48, 0.20),
-        (0.15, 0.85, 40, 0.18),
-        (0.88, 0.92, 54, 0.22)
-      ]
-
-      for cfg in bubbleConfigs {
-        let bView = UIView()
-        bView.translatesAutoresizingMaskIntoConstraints = false
-        bView.isUserInteractionEnabled = false
-        bView.backgroundColor = UIColor.white.withAlphaComponent(cfg.alpha)
-        bView.layer.cornerRadius = cfg.size / 2.0
-        bView.layer.borderWidth = 1.0
-        bView.layer.borderColor = UIColor.white.withAlphaComponent(cfg.alpha * 1.6).cgColor
-
-        let shine = UIView(frame: CGRect(x: cfg.size * 0.24, y: cfg.size * 0.14, width: cfg.size * 0.26, height: cfg.size * 0.26))
-        shine.backgroundColor = UIColor.white.withAlphaComponent(0.65)
-        shine.layer.cornerRadius = (cfg.size * 0.26) / 2.0
-        bView.addSubview(shine)
-
-        addSubview(bView)
-        bubbleViews.append(bView)
-
-        NSLayoutConstraint.activate([
-          bView.widthAnchor.constraint(equalToConstant: cfg.size),
-          bView.heightAnchor.constraint(equalToConstant: cfg.size),
-          bView.centerXAnchor.constraint(equalTo: leadingAnchor, constant: 400 * cfg.xRel),
-          bView.centerYAnchor.constraint(equalTo: topAnchor, constant: 800 * cfg.yRel)
-        ])
-      }
-
     case .cyberpunk:
       gradientLayer.colors = [
-        UIColor(red: 0.06, green: 0.0, blue: 0.12, alpha: 1.0).cgColor,
-        UIColor.black.cgColor,
-        UIColor(red: 0.0, green: 0.04, blue: 0.08, alpha: 1.0).cgColor
+        UIColor(red: 0.12, green: 0.05, blue: 0.22, alpha: 1.0).cgColor,
+        UIColor(red: 0.07, green: 0.03, blue: 0.15, alpha: 1.0).cgColor,
+        UIColor(red: 0.04, green: 0.02, blue: 0.09, alpha: 1.0).cgColor
       ]
-      gradientLayer.locations = [0.0, 0.55, 1.0]
-      gradientLayer.startPoint = CGPoint(x: 0.5, y: 0.0)
-      gradientLayer.endPoint = CGPoint(x: 0.5, y: 1.0)
+      gradientLayer.locations = [0.0, 0.5, 1.0]
+      gradientLayer.startPoint = CGPoint(x: 0.1, y: 0.0)
+      gradientLayer.endPoint = CGPoint(x: 0.9, y: 1.0)
       gradientLayer.isHidden = false
 
     case .minimalist:
