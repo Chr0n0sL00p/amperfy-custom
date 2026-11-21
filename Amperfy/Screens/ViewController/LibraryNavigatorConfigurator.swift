@@ -252,14 +252,19 @@ class LibraryNavigatorConfigurator: NSObject {
   }
 
   private func createLayout() -> UICollectionViewLayout {
-    let sectionProvider = { (
+    let sectionProvider = { [weak self] (
       sectionIndex: Int,
       layoutEnvironment: NSCollectionLayoutEnvironment
     ) -> NSCollectionLayoutSection? in
+      guard let self = self else { return nil }
+      var config = self.layoutConfig
+      config.showsSeparators = false
       let section = NSCollectionLayoutSection.list(
-        using: self.layoutConfig,
+        using: config,
         layoutEnvironment: layoutEnvironment
       )
+      section.interGroupSpacing = 12
+      section.contentInsets = NSDirectionalEdgeInsets(top: 14, leading: 16, bottom: 20, trailing: 16)
       let headerFooterSize = NSCollectionLayoutSize(
         widthDimension: .fractionalWidth(1.0),
         heightDimension: .estimated(.leastNonzeroMagnitude)
@@ -290,6 +295,34 @@ class LibraryNavigatorConfigurator: NSObject {
       } else if let libraryItem = item.library {
         var content = cell.defaultContentConfiguration()
         Self.configureForLibrary(contentView: &content, libraryItem: libraryItem)
+
+        var background = UIBackgroundConfiguration.listCell()
+        background.cornerRadius = 16
+
+        let theme = appDelegate.storage.settings.accounts.activeSetting.read.themePreference
+        if theme == .frutigerAero {
+          background.backgroundColor = UIColor(white: 1.0, alpha: 0.16)
+          background.strokeColor = UIColor(white: 1.0, alpha: 0.35)
+          background.strokeWidth = 1.0
+          content.textProperties.color = .white
+          content.secondaryTextProperties.color = UIColor(white: 0.9, alpha: 0.8)
+          content.imageProperties.tintColor = UIColor(red: 0.25, green: 0.85, blue: 1.0, alpha: 1.0)
+        } else if theme == .cyberpunk {
+          background.backgroundColor = UIColor(red: 0.08, green: 0.03, blue: 0.16, alpha: 0.70)
+          background.strokeColor = UIColor(red: 0.0, green: 1.0, blue: 0.98, alpha: 0.40)
+          background.strokeWidth = 1.0
+          content.textProperties.color = .white
+          content.secondaryTextProperties.color = UIColor(red: 0.0, green: 1.0, blue: 0.98, alpha: 0.75)
+          content.imageProperties.tintColor = UIColor(red: 1.0, green: 0.05, blue: 0.50, alpha: 1.0)
+        } else {
+          background.backgroundColor = UIColor.secondarySystemGroupedBackground
+          background.strokeColor = UIColor.separator.withAlphaComponent(0.3)
+          background.strokeWidth = 0.5
+        }
+
+        cell.backgroundConfiguration = background
+        cell.layer.masksToBounds = true
+        cell.clipsToBounds = true
 
         #if targetEnvironment(macCatalyst) // ok
           cell.accessories = []
@@ -346,14 +379,38 @@ class LibraryNavigatorConfigurator: NSObject {
     libraryItem: LibraryDisplayType
   ) {
     contentView.text = libraryItem.displayName
-    contentView.image = libraryItem.image.withRenderingMode(.alwaysTemplate)
-    if libraryItem == .podcasts {
-      // special case for podcast icon
-      contentView.image = libraryItem.image.withRenderingMode(.alwaysTemplate)
+    contentView.textProperties.font = .systemFont(ofSize: 20, weight: .bold)
+
+    switch libraryItem {
+    case .songs:
+      contentView.secondaryText = "Explora todas las pistas sincronizadas"
+    case .favoriteSongs:
+      contentView.secondaryText = "Tus temas favoritos destacados"
+    case .playlists:
+      contentView.secondaryText = "Listas de reproducción y mezclas"
+    case .albums:
+      contentView.secondaryText = "Colección de álbumes"
+    case .artists:
+      contentView.secondaryText = "Intérpretes y bandas"
+    case .genres:
+      contentView.secondaryText = "Géneros musicales"
+    case .downloads:
+      contentView.secondaryText = "Archivos descargados sin conexión"
+    case .podcasts:
+      contentView.secondaryText = "Episodios y suscripciones"
+    default:
+      contentView.secondaryText = nil
     }
-    let imageSize = CGSize(width: 35.0, height: 25.0)
+
+    if contentView.secondaryText != nil {
+      contentView.secondaryTextProperties.font = .systemFont(ofSize: 13, weight: .regular)
+    }
+
+    contentView.image = libraryItem.image.withRenderingMode(.alwaysTemplate)
+    let imageSize = CGSize(width: 36.0, height: 36.0)
     contentView.imageProperties.maximumSize = imageSize
     contentView.imageProperties.reservedLayoutSize = imageSize
+    contentView.directionalLayoutMargins = NSDirectionalEdgeInsets(top: 18, leading: 16, bottom: 18, trailing: 16)
   }
 
   private func applyInitialSnapshots() {

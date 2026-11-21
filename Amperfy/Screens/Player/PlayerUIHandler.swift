@@ -427,21 +427,37 @@ class PlayerUIHandler: NSObject {
   }
 
   private func castCurrentSongToNest(rootView: UIView) {
-    let songTitle = appDelegate.player.currentlyPlaying?.title ?? "Música"
+    let song = appDelegate.player.currentlyPlaying
+    let songTitle = song?.title ?? "Música"
+    let songId = song?.id ?? ""
 
-    if let url = URL(string: "http://192.168.100.90:8000/api/cast") {
-      var req = URLRequest(url: url)
-      req.httpMethod = "POST"
-      req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-      let payload = ["device": "192.168.100.13", "title": songTitle]
-      req.httpBody = try? JSONSerialization.data(withJSONObject: payload)
-      req.timeoutInterval = 3.0
-      URLSession.shared.dataTask(with: req).resume()
+    let endpoints = [
+      "http://100.117.169.38:4550/api/cast/play",
+      "http://192.168.100.90:4550/api/cast/play"
+    ]
+
+    var payloadDict: [String: Any] = [
+      "title": songTitle
+    ]
+    if !songId.isEmpty {
+      payloadDict["id"] = songId
+    }
+
+    if let jsonData = try? JSONSerialization.data(withJSONObject: payloadDict) {
+      for urlString in endpoints {
+        guard let url = URL(string: urlString) else { continue }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = jsonData
+        req.timeoutInterval = 4.0
+        URLSession.shared.dataTask(with: req).resume()
+      }
     }
 
     let alert = UIAlertController(
       title: "Google Nest Mini",
-      message: "Transmitiendo: \(songTitle) hacia Google Nest Mini (Comedor @ 192.168.100.13)...",
+      message: "Transmitiendo \"\(songTitle)\" a Google Nest Mini (Comedor).",
       preferredStyle: .alert
     )
     alert.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))

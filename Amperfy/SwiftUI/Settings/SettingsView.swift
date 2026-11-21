@@ -55,14 +55,26 @@ struct SettingsView: View {
   var body: some View {
     let list =
       SettingsList {
-        SettingsSection {
-          SettingsRow(title: "Version") {
-            SecondaryText(AppDelegate.version)
-          }
-          SettingsRow(title: "Build Number") {
-            SecondaryText(AppDelegate.buildNumber)
-          }
-        }
+        SettingsSection(
+          content: {
+            SettingsRow(title: "Version") {
+              SecondaryText(AppDelegate.version)
+            }
+            SettingsRow(title: "Build Number") {
+              SecondaryText(AppDelegate.buildNumber)
+            }
+            Button(action: {
+              UpdateManager.shared.check(notifyIfUpToDate: true)
+            }) {
+              HStack {
+                Text("Buscar Actualizaciones")
+                Spacer()
+                SecondaryText("v\(UpdateManager.currentAppVersion)")
+              }
+            }
+          },
+          footer: "Comprueba e instala automáticamente la versión más reciente de Amperfy Custom."
+        )
 
         SettingsSection(
           content: {

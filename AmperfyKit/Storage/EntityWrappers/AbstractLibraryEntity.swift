@@ -33,7 +33,7 @@ public enum RemoteStatus: Int {
 // MARK: - AbstractLibraryEntity
 
 public class AbstractLibraryEntity {
-  private let managedObject: AbstractLibraryEntityMO
+  public let managedObject: AbstractLibraryEntityMO
 
   static var typeName: String {
     String(describing: Self.self)
