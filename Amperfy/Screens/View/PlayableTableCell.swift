@@ -256,7 +256,7 @@ class PlayableTableCell: BasicTableCell {
     tapGestureRecognizer.isEnabled = (displayMode == .normal)
     selectionStyle = .none
     let themePreference = appDelegate.storage.settings.accounts
-      .getSetting(playable?.account?.info).read.themePreference
+      .getSetting(playable.account?.info).read.themePreference
     if themePreference.hasCustomAesthetic {
       backgroundColor = .clear
       contentView.backgroundColor = .clear
@@ -336,14 +336,14 @@ class PlayableTableCell: BasicTableCell {
       entityImage.layer.borderColor = UIColor.white.withAlphaComponent(0.35).cgColor
       entityImage.clipsToBounds = true
       titleLabel.textColor = .white
-      subtitleLabel.textColor = UIColor(white: 0.92, alpha: 1.0)
+      artistLabel.textColor = UIColor(white: 0.92, alpha: 1.0)
     } else if themePreference == .cyberpunk {
       entityImage.layer.cornerRadius = 6.0
       entityImage.layer.borderWidth = 1.0
       entityImage.layer.borderColor = UIColor(red: 1.0, green: 0.16, blue: 0.52, alpha: 0.8).cgColor
       entityImage.clipsToBounds = true
       titleLabel.textColor = .white
-      subtitleLabel.textColor = UIColor(red: 0.0, green: 0.92, blue: 1.0, alpha: 0.95)
+      artistLabel.textColor = UIColor(red: 0.0, green: 0.92, blue: 1.0, alpha: 0.95)
     }
     configurePlayIndicator(playable: playable)
 

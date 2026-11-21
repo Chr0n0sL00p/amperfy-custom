@@ -766,13 +766,13 @@ class MiniPlayerView: UIView {
   @objc
   private func handleMiniPlayerSwipeLeft() {
     Haptics.light.vibrate(isHapticsEnabled: appDelegate.storage.settings.user.isHapticsEnabled)
-    player.next()
+    playerHandler?.nextButtonPushed()
   }
 
   @objc
   private func handleMiniPlayerSwipeRight() {
     Haptics.light.vibrate(isHapticsEnabled: appDelegate.storage.settings.user.isHapticsEnabled)
-    player.previous()
+    playerHandler?.previousButtonPushed()
   }
 
   public func openPlayerView(completion: (() -> ())? = nil) {
