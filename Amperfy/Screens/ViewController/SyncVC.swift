@@ -224,7 +224,7 @@ extension SyncVC: SyncCallbacks {
       case .podcast:
         self.updateSyncInfo(infoText: "Syncing podcasts ...", percentParsed: 0.0)
       case .cache:
-        self.updateSyncInfo(infoText: "Applying cache ...", percentParsed: 0.0)
+        self.updateSyncInfo(infoText: "Precargando carátulas ...", percentParsed: 0.0)
       }
     }
   }

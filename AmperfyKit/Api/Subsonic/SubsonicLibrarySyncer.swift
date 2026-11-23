@@ -292,7 +292,91 @@ class SubsonicLibrarySyncer: CommonLibrarySyncer, LibrarySyncer {
       )
       parserDelegate.performPostParseOperations()
     }
+
+    // Precarga automática de carátulas para que todas las canciones y álbumes tengan carátula local instantánea
+    try await prefetchArtworks(statusNotifyier: statusNotifyier)
+
     storage.settings.accounts.updateSetting(accountInfo) { $0.clearInitialSyncCheckpoint() }
+  }
+
+  @MainActor
+  private func prefetchArtworks(statusNotifyier: SyncCallbacks?) async throws {
+    let artworksToFetch: [(NSManagedObjectID, String, ArtworkRemoteInfo)] = try await storage.async.performAndGet { asyncCompanion in
+      let accountAsync = asyncCompanion.library.getAccount(managedObjectId: self.accountObjectId)
+      let albums = asyncCompanion.library.getAlbums(for: accountAsync)
+      var uniqueArtworks = [String: (NSManagedObjectID, String, ArtworkRemoteInfo)]()
+      for album in albums {
+        guard let artwork = album.artwork, !artwork.isCached, !artwork.id.isEmpty else { continue }
+        if uniqueArtworks[artwork.id] == nil {
+          uniqueArtworks[artwork.id] = (artwork.objectID, artwork.id, artwork.remoteInfo)
+        }
+      }
+      return Array(uniqueArtworks.values)
+    }
+
+    guard !artworksToFetch.isEmpty else { return }
+    statusNotifyier?.notifySyncStarted(ofType: .cache, totalCount: artworksToFetch.count)
+
+    let fileManager = CacheFileManager.shared
+    let accountInfo = self.accountInfo
+
+    await withTaskGroup(of: (NSManagedObjectID, URL?)?.self) { group in
+      var batchIterator = artworksToFetch.makeIterator()
+      for _ in 0 ..< 4 {
+        guard let item = batchIterator.next() else { break }
+        group.addTask {
+          do {
+            let url = try await self.subsonicServerApi.generateUrl(forArtworkId: item.1)
+            let (data, response) = try await URLSession.shared.data(from: url)
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200, data.count > 100 else {
+              return nil
+            }
+            guard let relPath = fileManager.createRelPath(for: item.2, account: accountInfo),
+                  let absPath = fileManager.getAbsoluteAmperfyPath(relFilePath: relPath) else {
+              return nil
+            }
+            try fileManager.writeDataExcludedFromBackup(data: data, to: absPath, accountInfo: accountInfo)
+            return (item.0, relPath)
+          } catch {
+            return nil
+          }
+        }
+      }
+
+      while let result = await group.next() {
+        if let (objId, relPath) = result {
+          do {
+            try await self.storage.async.perform { asyncCompanion in
+              guard let artworkMO = try? asyncCompanion.context.existingObject(with: objId) as? ArtworkMO else { return }
+              let artwork = Artwork(managedObject: artworkMO)
+              artwork.relFilePath = relPath
+              artwork.status = .CustomImage
+            }
+          } catch {}
+        }
+        statusNotifyier?.notifyParsedObject(ofType: .cache)
+
+        if let nextItem = batchIterator.next() {
+          group.addTask {
+            do {
+              let url = try await self.subsonicServerApi.generateUrl(forArtworkId: nextItem.1)
+              let (data, response) = try await URLSession.shared.data(from: url)
+              guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200, data.count > 100 else {
+                return nil
+              }
+              guard let relPath = fileManager.createRelPath(for: nextItem.2, account: accountInfo),
+                    let absPath = fileManager.getAbsoluteAmperfyPath(relFilePath: relPath) else {
+                return nil
+              }
+              try fileManager.writeDataExcludedFromBackup(data: data, to: absPath, accountInfo: accountInfo)
+              return (nextItem.0, relPath)
+            } catch {
+              return nil
+            }
+          }
+        }
+      }
+    }
   }
 
   /// Parallel album batches can create the same artist or album twice
