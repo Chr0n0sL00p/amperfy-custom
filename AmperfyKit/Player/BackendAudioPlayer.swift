@@ -114,6 +114,7 @@ class BackendAudioPlayer: NSObject {
   private var timerElapsedTimeInterval: Timer?
   private var timerLyricsTimeInterval: Timer?
   private var volumePlayer: Float = 1.0
+  private var currentPlayTask: Task<Void, Never>?
 
   private var player: AudioStreamingPlayer?
   private var equalizer: AVAudioUnitEQ?
@@ -594,18 +595,27 @@ class BackendAudioPlayer: NSObject {
         }
       }
 
-      Task { @MainActor in
+      currentPlayTask?.cancel()
+      let streamGeneration = streamRestartRequest
+      currentPlayTask = Task { @MainActor [weak self] in
+        guard let self else { return }
         do {
+          try Task.checkCancellation()
           currentReplayGainValue = playable.replayGainTrackGain
           applyReplayGain()
           try await insertStreamPlayable(playable: playable)
+          try Task.checkCancellation()
+          guard self.streamRestartRequest == streamGeneration else { return }
           isPlaying = shouldPlaybackStart
           if self.isAutoCachePlayedItems, !playable.isRadio,
              let accountInfo = playable.account?.info {
             self.getPlayableDownloaderCB(accountInfo).download(object: playable)
           }
           self.responder?.notifyItemPreparationFinished()
+        } catch is CancellationError {
+          os_log(.debug, "Stream playback cancelled for track transition")
         } catch {
+          guard self.streamRestartRequest == streamGeneration else { return }
           self.responder?.notifyErrorOccurred(error: error)
           self.responder?.notifyItemPreparationFinished()
           self.eventLogger.report(topic: "Player", error: error)

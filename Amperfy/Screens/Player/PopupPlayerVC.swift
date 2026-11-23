@@ -222,9 +222,18 @@ class PopupPlayerVC: UIViewController, UIScrollViewDelegate {
     }}
   }
 
+  private var isReloadingData = false
   func reloadData() {
-    tableView.reloadData()
-    scrollToCurrentlyPlayingRow()
+    guard !isReloadingData else { return }
+    isReloadingData = true
+    DispatchQueue.main.async { [weak self] in
+      guard let self else { return }
+      self.isReloadingData = false
+      self.tableView.reloadData()
+      if !self.tableView.isDragging && !self.tableView.isDecelerating {
+        self.scrollToCurrentlyPlayingRow()
+      }
+    }
   }
 
   func scrollToCurrentlyPlayingRow() {

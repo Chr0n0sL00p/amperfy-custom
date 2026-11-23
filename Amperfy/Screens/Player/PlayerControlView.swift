@@ -76,6 +76,19 @@ class PlayerControlView: UIView {
   @IBOutlet
   weak var optionsButton: UIButton!
 
+  public private(set) lazy var shuffleQuickButton: UIButton = {
+    let button = UIButton(type: .system)
+    let config = UIImage.SymbolConfiguration(pointSize: 18, weight: .semibold)
+    button.setImage(UIImage(systemName: "shuffle", withConfiguration: config), for: .normal)
+    button.tintColor = .label
+    button.accessibilityLabel = "Shuffle"
+    button.translatesAutoresizingMaskIntoConstraints = false
+    button.widthAnchor.constraint(equalToConstant: 44).isActive = true
+    button.heightAnchor.constraint(equalToConstant: 44).isActive = true
+    button.addTarget(self, action: #selector(shuffleQuickButtonPushed), for: .touchUpInside)
+    return button
+  }()
+
   required init?(coder aDecoder: NSCoder) {
     super.init(coder: aDecoder)
     self.layoutMargins = Self.margin
@@ -105,6 +118,15 @@ class PlayerControlView: UIView {
     airplayButton.accessibilityLabel = "AirPlay"
     volumeButton.accessibilityLabel = "Volume"
     optionsButton.accessibilityLabel = "Player Options"
+
+    if !optionsStackView.arrangedSubviews.contains(shuffleQuickButton) {
+      if let displayIndex = optionsStackView.arrangedSubviews.firstIndex(of: displayPlaylistButton) {
+        optionsStackView.insertArrangedSubview(shuffleQuickButton, at: displayIndex)
+      } else {
+        optionsStackView.addArrangedSubview(shuffleQuickButton)
+      }
+    }
+
     refreshPlayer()
     playerHandler?.refreshPlayerOptions(
       optionsButton: optionsButton,
@@ -261,6 +283,27 @@ class PlayerControlView: UIView {
     playerHandler?.refreshPrevNextButtons(previousButton: previousButton, nextButton: nextButton)
     playerHandler?.refreshDisplayPlaylistButton(displayPlaylistButton: displayPlaylistButton)
     refreshPlayerModeChangeButton()
+    refreshShuffleQuickButton()
+  }
+
+  @objc private func shuffleQuickButtonPushed() {
+    let generator = UIImpactFeedbackGenerator(style: .medium)
+    generator.impactOccurred()
+    playerHandler?.shuffleButtonPushed()
+    refreshShuffleQuickButton()
+  }
+
+  func refreshShuffleQuickButton() {
+    let isShuffle = player.isShuffle
+    shuffleQuickButton.isSelected = isShuffle
+    let activeColor = appDelegate.storage.settings.accounts.activeSetting.read.themePreference == .frutigerAero
+      ? UIColor(red: 0.0, green: 0.78, blue: 0.92, alpha: 1.0)
+      : (appDelegate.storage.settings.accounts.activeSetting.read.themePreference == .cyberpunk
+         ? UIColor(red: 1.0, green: 0.16, blue: 0.52, alpha: 1.0)
+         : (UIView().tintColor ?? .systemPink))
+    
+    shuffleQuickButton.tintColor = isShuffle ? activeColor : .label
+    shuffleQuickButton.accessibilityLabel = isShuffle ? "Shuffle On" : "Shuffle Off"
   }
 
   func createPlaybackRateMenu() -> UIMenuElement {
@@ -483,7 +526,9 @@ extension PlayerControlView: MusicPlayable {
 
   func didArtworkChange() {}
 
-  func didShuffleChange() {}
+  func didShuffleChange() {
+    refreshShuffleQuickButton()
+  }
 
   func didRepeatChange() {}
 

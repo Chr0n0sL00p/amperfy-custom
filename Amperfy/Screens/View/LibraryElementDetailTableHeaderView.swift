@@ -77,24 +77,19 @@ class LibraryElementDetailTableHeaderView: UIView {
     configuration: PlayShuffleInfoConfiguration
   )
     -> LibraryElementDetailTableHeaderView? {
-    let container = UIView(frame: CGRect(
+    let screenWidth = UIScreen.main.bounds.size.width
+    let targetWidth = rootView.view.bounds.size.width > 0 ? rootView.view.bounds.size.width : screenWidth
+    let frame = CGRect(
       x: 0,
       y: 0,
-      width: rootView.view.bounds.size.width,
+      width: targetWidth,
       height: Self.frameHeight
-    ))
-    container.autoresizingMask = [.flexibleWidth]
-    rootView.tableView.tableHeaderView = container
-    let genericDetailTableHeaderView = ViewCreator<LibraryElementDetailTableHeaderView>
-      .createFromNib(withinFixedFrame: CGRect(
-        x: 0,
-        y: 0,
-        width: rootView.view.bounds.size.width,
-        height: Self.frameHeight
-      ))!
-    genericDetailTableHeaderView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    )
+    guard let genericDetailTableHeaderView = ViewCreator<LibraryElementDetailTableHeaderView>
+      .createFromNib(withinFixedFrame: frame) else { return nil }
+    genericDetailTableHeaderView.autoresizingMask = [.flexibleWidth]
     genericDetailTableHeaderView.prepare(configuration: configuration)
-    container.addSubview(genericDetailTableHeaderView)
+    rootView.tableView.tableHeaderView = genericDetailTableHeaderView
     return genericDetailTableHeaderView
   }
 
@@ -149,14 +144,16 @@ class LibraryElementDetailTableHeaderView: UIView {
 
   @IBAction
   func playAllButtonPressed(_ sender: Any) {
-    Haptics.success.vibrate(isHapticsEnabled: appDelegate.storage.settings.user.isHapticsEnabled)
+    let generator = UIImpactFeedbackGenerator(style: .medium)
+    generator.impactOccurred()
     animateButtonPress(playAllButton)
     play(isShuffled: false)
   }
 
   @IBAction
   func addAllShuffledButtonPressed(_ sender: Any) {
-    Haptics.success.vibrate(isHapticsEnabled: appDelegate.storage.settings.user.isHapticsEnabled)
+    let generator = UIImpactFeedbackGenerator(style: .medium)
+    generator.impactOccurred()
     animateButtonPress(playShuffledButton)
     shuffle()
   }
@@ -303,8 +300,7 @@ class LibraryElementDetailTableHeaderView: UIView {
 
   func activate() {
     playAllButton.isEnabled = true
-    playShuffledButton.isEnabled = !(config?.isShuffleOnContextNeccessary ?? true) || appDelegate
-      .storage.settings.user.isPlayerShuffleButtonEnabled
+    playShuffledButton.isEnabled = true
   }
 
   func deactivate() {

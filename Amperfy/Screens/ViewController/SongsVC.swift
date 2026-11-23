@@ -106,6 +106,14 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
     )
   }
 
+  override func viewDidLayoutSubviews() {
+    super.viewDidLayoutSubviews()
+    if let header = detailHeaderView, header.bounds.width != tableView.bounds.width, tableView.bounds.width > 0 {
+      header.frame = CGRect(x: 0, y: 0, width: tableView.bounds.width, height: LibraryElementDetailTableHeaderView.frameHeight)
+      tableView.tableHeaderView = header
+    }
+  }
+
   @objc
   private func handleLibrarySongsSynced() {
     // a hidden list refetches in viewIsAppearing, an active search tracks changes itself
@@ -372,14 +380,9 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
       playables: []
     ) }
     let validSongsMO = displayedSongsMO.filter { !$0.isDeleted && $0.managedObjectContext != nil }
-    if validSongsMO.count > appDelegate.player.maxSongsToAddOnce {
-      let songsToPlay = validSongsMO.prefix(appDelegate.player.maxSongsToAddOnce)
-        .compactMap { Song(managedObject: $0) }
-      return PlayContext(name: filterTitle, playables: songsToPlay)
-    } else {
-      let songsToPlay = validSongsMO.compactMap { Song(managedObject: $0) }
-      return PlayContext(name: filterTitle, playables: songsToPlay)
-    }
+    let batchLimit = min(validSongsMO.count, 600)
+    let songsToPlay = validSongsMO.prefix(batchLimit).compactMap { Song(managedObject: $0) }
+    return PlayContext(name: filterTitle, playables: songsToPlay)
   }
 
   private func handleHeaderShuffle() -> PlayContext {
@@ -389,17 +392,11 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
     ) }
     let validSongsMO = displayedSongsMO.filter { !$0.isDeleted && $0.managedObjectContext != nil }
     var generator = SystemRandomNumberGenerator()
-    if validSongsMO.count > appDelegate.player.maxSongsToAddOnce {
-      let songsToPlay = validSongsMO[randomPick: appDelegate.player.maxSongsToAddOnce]
-        .shuffled(using: &generator)
-        .compactMap { Song(managedObject: $0) }
-      return PlayContext(name: filterTitle, playables: songsToPlay)
-    } else {
-      let songsToPlay = validSongsMO
-        .shuffled(using: &generator)
-        .compactMap { Song(managedObject: $0) }
-      return PlayContext(name: filterTitle, playables: songsToPlay)
-    }
+    let batchLimit = min(validSongsMO.count, 600)
+    let songsToPlay = (validSongsMO.count > batchLimit ? validSongsMO[randomPick: batchLimit] : validSongsMO)
+      .shuffled(using: &generator)
+      .compactMap { Song(managedObject: $0) }
+    return PlayContext(name: filterTitle, playables: songsToPlay)
   }
 
   private func createSortButtonMenu() -> UIMenu {
